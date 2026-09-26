@@ -33,7 +33,7 @@ body {
 }
 
 .wrap {
-  max-width: 760px;
+  max-width: 1080px;
   margin: 0 auto;
   padding: 26px 18px 60px;
 }
@@ -188,6 +188,7 @@ label.field {
   display: block;
   font-family: 'Caveat';
   font-size: 26px;
+  color: #c5ffd3;
 }
 
 .klas-card span {
@@ -497,4 +498,309 @@ th {
 :focus-visible {
   outline: 2px solid var(--chalk);
   outline-offset: 2px;
+}
+
+/* ---------------- Hero Banner Redesign (Image 2 Layout Refined) ---------------- */
+.hero-container {
+  background: radial-gradient(circle at 50% 30%, #1e4534 0%, #142f24 85%);
+  border-radius: 28px;
+  padding: 32px 20px;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 480px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  gap: 12px;
+}
+
+/* Wave & Curve Shapes at bottom */
+.hero-container::before {
+  content: '';
+  position: absolute;
+  bottom: -40px;
+  left: -10%;
+  right: -10%;
+  height: 120px;
+  background: radial-gradient(ellipse at 50% 100%, #e5a83b 0%, #c48c2b 50%, transparent 75%);
+  opacity: 0.85;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.hero-container::after {
+  content: '';
+  position: absolute;
+  bottom: -60px;
+  left: 0;
+  right: 0;
+  height: 100px;
+  background: #1b382b;
+  border-radius: 50% 50% 0 0;
+  pointer-events: none;
+  opacity: 0.6;
+  z-index: 2;
+}
+
+/* Floating Art & Music Doodles */
+.hero-doodles {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.doodle {
+  position: absolute;
+  font-size: 28px;
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3));
+  opacity: 0.9;
+  user-select: none;
+  animation: float 4s ease-in-out infinite alternate;
+}
+
+.doodle-palette {
+  top: 28px;
+  left: 120px;
+  font-size: 34px;
+  transform: rotate(-15deg);
+}
+
+.doodle-note1 {
+  top: 35px;
+  right: 240px;
+  font-size: 30px;
+  color: #f5cf64;
+  animation-delay: 1s;
+}
+
+.doodle-note2 {
+  top: 110px;
+  right: 160px;
+  font-size: 24px;
+  color: #f89696;
+  animation-delay: 2s;
+}
+
+.doodle-brush {
+  top: 30px;
+  right: 80px;
+  font-size: 32px;
+  transform: rotate(45deg);
+}
+
+@keyframes float {
+  0% {
+    transform: translateY(0px) rotate(0deg);
+  }
+
+  100% {
+    transform: translateY(-8px) rotate(6deg);
+  }
+}
+
+/* Characters - Fully Uncropped */
+.hero-char {
+  flex: 0 0 225px;
+  max-width: 225px;
+  z-index: 3;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.hero-char img {
+  width: 100%;
+  height: auto;
+  max-height: 400px;
+  object-fit: contain;
+  display: block;
+  border-radius: 16px;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
+  transition: transform 0.3s ease;
+}
+
+.hero-char-left img:hover {
+  transform: scale(1.03) rotate(-1deg);
+}
+
+.hero-char-right img:hover {
+  transform: scale(1.03) rotate(1deg);
+}
+
+/* Main Center Content */
+.hero-main {
+  flex: 1;
+  max-width: 480px;
+  text-align: center;
+  margin: 0;
+  z-index: 4;
+  position: relative;
+}
+
+.hero-title {
+  font-family: 'Inter', sans-serif;
+  font-weight: 800;
+  font-size: 36px;
+  color: #ffffff;
+  margin: 0 0 6px;
+  line-height: 1.15;
+  letter-spacing: -0.5px;
+}
+
+.accent-budaya {
+  font-family: 'Caveat', cursive;
+  color: #f7bb43;
+  font-size: 46px;
+  font-weight: 700;
+  margin-left: 6px;
+  text-shadow: 0 3px 12px rgba(247, 187, 67, 0.3);
+}
+
+.sparkles {
+  font-size: 22px;
+  vertical-align: super;
+  margin-left: 4px;
+}
+
+.hero-subtitle {
+  font-size: 14px;
+  color: #b0d4c2;
+  margin: 0 0 20px;
+  line-height: 1.45;
+  font-weight: 500;
+}
+
+/* Card */
+.hero-card {
+  background: rgba(18, 43, 33, 0.82);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 20px;
+  padding: 22px 18px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+}
+
+.hero-card-title {
+  font-family: 'Inter', sans-serif;
+  font-weight: 800;
+  font-size: 22px;
+  color: #ffffff;
+  margin: 0 0 4px;
+}
+
+.hero-card-sub {
+  color: #9cbcae;
+  font-size: 13px;
+  margin: 0 0 18px;
+}
+
+/* Horizontal Actions (Side-by-Side) */
+.hero-actions {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.btn-siswa-hero {
+  background: #e87a38;
+  color: #ffffff;
+  border: none;
+  padding: 12px 16px;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 13.5px;
+  cursor: pointer;
+  font-family: 'Inter', sans-serif;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  white-space: nowrap;
+  box-shadow: 0 6px 20px rgba(232, 122, 56, 0.4);
+  transition: all 0.2s ease;
+  flex: 1;
+}
+
+.btn-siswa-hero:hover {
+  background: #d96927;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(232, 122, 56, 0.5);
+}
+
+.btn-guru-hero {
+  background: rgba(255, 255, 255, 0.05);
+  color: #ffffff;
+  border: 1.5px solid rgba(255, 255, 255, 0.25);
+  padding: 12px 16px;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 13.5px;
+  cursor: pointer;
+  font-family: 'Inter', sans-serif;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+  flex: 1;
+}
+
+.btn-guru-hero:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.45);
+  transform: translateY(-2px);
+}
+
+/* Media Queries Responsif */
+@media (max-width: 900px) {
+  .hero-container {
+    flex-direction: column;
+    padding: 32px 18px;
+  }
+
+  .hero-char {
+    max-width: 200px;
+  }
+
+  .hero-char-left {
+    order: 1;
+  }
+
+  .hero-main {
+    order: 2;
+    max-width: 100%;
+    margin: 16px 0;
+  }
+
+  .hero-char-right {
+    order: 3;
+  }
+}
+
+@media (max-width: 540px) {
+  .hero-actions {
+    flex-direction: column;
+  }
+
+  .btn-siswa-hero,
+  .btn-guru-hero {
+    width: 100%;
+  }
+
+  .hero-title {
+    font-size: 28px;
+  }
+
+  .accent-budaya {
+    font-size: 40px;
+  }
 }
