@@ -36,7 +36,12 @@ async function sbFetchQuestions(kelas = null) {
             console.error("Supabase Error [sbFetchQuestions]:", error);
             return null;
         }
-        return data;
+        return data.map(q => ({
+            ...q,
+            gambarData: q.gambar_data || q.gambarData || null,
+            audioData: q.audio_data || q.audioData || null,
+            waktu: (q.waktu !== undefined && q.waktu !== null) ? Number(q.waktu) : 30
+        }));
     } catch (e) {
         console.error("Network / Supabase Exception [sbFetchQuestions]:", e);
         return null;
@@ -54,8 +59,10 @@ async function sbSaveQuestion(questionObj) {
             materi: questionObj.materi,
             pertanyaan: questionObj.pertanyaan,
             gambar_data: questionObj.gambarData || null,
+            audio_data: questionObj.audioData || null,
             opsi: questionObj.opsi,
-            jawaban: Number(questionObj.jawaban)
+            jawaban: Number(questionObj.jawaban),
+            waktu: Number(questionObj.waktu || 30)
         };
 
         if (questionObj.id && !String(questionObj.id).startsWith('local_')) {
@@ -71,7 +78,12 @@ async function sbSaveQuestion(questionObj) {
             console.error("Supabase Error [sbSaveQuestion]:", error);
             return null;
         }
-        return data ? data[0] : null;
+        const res = data ? data[0] : null;
+        if (res) {
+            res.gambarData = res.gambar_data || res.gambarData || null;
+            res.audioData = res.audio_data || res.audioData || null;
+        }
+        return res;
     } catch (e) {
         console.error("Network / Supabase Exception [sbSaveQuestion]:", e);
         return null;
