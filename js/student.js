@@ -93,7 +93,7 @@ async function startQuiz() {
       return;
     }
     if (quizTimerInterval) clearInterval(quizTimerInterval);
-    quiz = { list, idx: 0, score: 0, answered: false };
+    quiz = { list, idx: 0, score: 0, answered: false, userAnswers: [] };
     go('s-quiz');
   } catch (e) {
     console.error("Quiz load error:", e);
@@ -162,6 +162,13 @@ function answerQuiz(i) {
   const opts = document.querySelectorAll('#optsWrap .opt');
   opts.forEach(o => o.disabled = true);
 
+  if (!quiz.userAnswers) quiz.userAnswers = [];
+  quiz.userAnswers.push({
+    question: item,
+    selected: i,
+    isCorrect: i === item.jawaban
+  });
+
   if (i === -1) {
     const wrap = document.getElementById('optsWrap');
     if (wrap) {
@@ -229,10 +236,83 @@ function sResultView() {
     <div class="score">${quiz.score}/${quiz.list.length}</div>
     <p class="pct">${pct}% benar · ${msg}</p>
   </div>
-  <div class="row">
+  <div class="row" style="flex-direction:column;gap:10px;">
+    <button class="btn btn-block" style="background:var(--ok);color:#fff;font-weight:700;" onclick="go('s-pembahasan')">💡 Lihat Pembahasan & Kunci Jawaban</button>
+    <div class="row" style="gap:10px;">
+      <button class="btn" style="background:var(${info.accent});color:#1c1c1c;flex:1;" onclick="startQuiz()">Ulangi Kuis</button>
+      <button class="btn btn-ghost" style="flex:1;" onclick="go('s-materi')">Kembali ke Materi</button>
+      <button class="btn btn-ghost" style="flex:1;" onclick="openRiwayat()">Lihat Riwayat</button>
+    </div>
+  </div>`;
+}
+
+function sPembahasanView() {
+  const info = KELAS[S.kelas];
+  const answers = (quiz && quiz.userAnswers) ? quiz.userAnswers : [];
+  return `
+  <button class="back" onclick="go('s-result')">&larr; Kembali ke Hasil Kuis</button>
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+    <h2>💡 Pembahasan & Kunci Jawaban</h2>
+    <span class="badge ${info.badge}">${info.label}</span>
+  </div>
+  <p class="sub">Pelajari jawabanmu untuk memahami materi lebih dalam.</p>
+  <div style="display:flex;flex-direction:column;gap:16px;margin-top:16px;">
+    ${answers.length === 0 ? `<div class="card"><p class="empty">Tidak ada data pembahasan.</p></div>` : answers.map((ans, idx) => {
+    const q = ans.question;
+    const isCorrect = ans.isCorrect;
+    const gSrc = q.gambarData || (q.gambarId ? `/_blob/${q.gambarId}` : null);
+    const aSrc = q.audioData || (q.audioId ? `/_blob/${q.audioId}` : null);
+
+    return `
+      <div class="card" style="border-left: 6px solid ${isCorrect ? 'var(--ok)' : 'var(--bad)'}; position: relative;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+          <span class="badge" style="background:${isCorrect ? 'var(--ok)' : 'var(--bad)'};color:#fff;font-weight:700;">
+            ${isCorrect ? '✓ Benar' : '✕ Salah'}
+          </span>
+          <span style="font-size:13px;color:var(--text-sub);font-weight:600;">Soal ${idx + 1} dari ${answers.length}</span>
+        </div>
+        <p style="font-weight:700;font-size:16px;margin-bottom:10px;line-height:1.4;color:var(--text);">${esc(q.pertanyaan)}</p>
+        ${gSrc ? `<img class="q-media" src="${gSrc}" style="max-height:160px;margin-bottom:10px;">` : ''}
+        ${aSrc ? `<audio class="q-media" controls src="${aSrc}" style="width:100%;margin-bottom:10px;"></audio>` : ''}
+        
+        <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px;">
+          ${q.opsi.map((opt, optIdx) => {
+      let bg = 'var(--surface-hover)';
+      let border = '1px solid var(--border)';
+      let icon = '';
+      if (optIdx === q.jawaban) {
+        bg = 'rgba(79, 182, 168, 0.18)';
+        border = '2px solid var(--ok)';
+        icon = ' <b style="color:var(--ok);">✓ Jawaban Benar</b>';
+      }
+      if (optIdx === ans.selected && optIdx !== q.jawaban) {
+        bg = 'rgba(232, 135, 74, 0.18)';
+        border = '2px solid var(--bad)';
+        icon = ' <b style="color:var(--bad);">✕ Jawaban Anda</b>';
+      } else if (optIdx === ans.selected && optIdx === q.jawaban) {
+        icon = ' <b style="color:var(--ok);">✓ Jawaban Anda (Benar)</b>';
+      }
+      return `<div style="padding:10px 14px;border-radius:8px;background:${bg};border:${border};font-size:14px;font-weight:600;display:flex;justify-content:space-between;align-items:center;">
+              <span><b>${String.fromCharCode(65 + optIdx)}.</b> ${esc(opt)}</span>
+              <span style="font-size:13px;">${icon}</span>
+            </div>`;
+    }).join('')}
+        </div>
+
+        ${q.penjelasan ? `
+        <div style="background:var(--bg);padding:14px;border-radius:8px;border:1px dashed var(--accent);margin-top:10px;">
+          <p style="margin:0;font-weight:700;color:var(--accent);font-size:14px;display:flex;align-items:center;gap:6px;">
+            💡 Pembahasan & Alasan:
+          </p>
+          <p style="margin:6px 0 0 0;font-size:14px;line-height:1.5;color:var(--text);">${esc(q.penjelasan)}</p>
+        </div>
+        ` : ''}
+      </div>`;
+  }).join('')}
+  </div>
+  <div class="row" style="margin-top:20px;">
     <button class="btn" style="background:var(${info.accent});color:#1c1c1c;" onclick="startQuiz()">Ulangi Kuis</button>
     <button class="btn btn-ghost" onclick="go('s-materi')">Kembali ke Materi</button>
-    <button class="btn btn-ghost" onclick="openRiwayat()">Lihat Riwayat</button>
   </div>`;
 }
 

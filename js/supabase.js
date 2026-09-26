@@ -40,7 +40,8 @@ async function sbFetchQuestions(kelas = null) {
             ...q,
             gambarData: q.gambar_data || q.gambarData || null,
             audioData: q.audio_data || q.audioData || null,
-            waktu: (q.waktu !== undefined && q.waktu !== null) ? Number(q.waktu) : 30
+            waktu: (q.waktu !== undefined && q.waktu !== null) ? Number(q.waktu) : 30,
+            penjelasan: q.penjelasan || null
         }));
     } catch (e) {
         console.error("Network / Supabase Exception [sbFetchQuestions]:", e);
@@ -64,15 +65,29 @@ async function sbSaveQuestion(questionObj) {
             jawaban: Number(questionObj.jawaban),
             waktu: Number(questionObj.waktu || 30)
         };
+        if (questionObj.penjelasan) {
+            payload.penjelasan = questionObj.penjelasan;
+        }
 
         if (questionObj.id && !String(questionObj.id).startsWith('local_')) {
             payload.id = questionObj.id;
         }
 
-        const { data, error } = await supabaseClient
+        let { data, error } = await supabaseClient
             .from('questions')
             .upsert(payload)
             .select();
+
+        if (error && payload.penjelasan && (error.message || '').toLowerCase().includes('penjelasan')) {
+            console.warn("Supabase table missing 'penjelasan' column. Retrying without it...");
+            delete payload.penjelasan;
+            const retry = await supabaseClient
+                .from('questions')
+                .upsert(payload)
+                .select();
+            data = retry.data;
+            error = retry.error;
+        }
 
         if (error) {
             console.error("Supabase Error [sbSaveQuestion]:", error);
@@ -82,6 +97,7 @@ async function sbSaveQuestion(questionObj) {
         if (res) {
             res.gambarData = res.gambar_data || res.gambarData || null;
             res.audioData = res.audio_data || res.audioData || null;
+            res.penjelasan = res.penjelasan || questionObj.penjelasan || null;
         }
         return res;
     } catch (e) {

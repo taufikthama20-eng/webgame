@@ -29,7 +29,8 @@ const DEFAULT_QUESTIONS = [
     pertanyaan: 'Perhatikan gambar berikut. Unsur seni rupa paling dasar yang terbentuk dari kumpulan titik-titik yang terhubung adalah...',
     gambarData: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="160" viewBox="0 0 400 160"><rect width="100%" height="100%" fill="%232d3b34" rx="10"/><circle cx="80" cy="80" r="30" stroke="%23e8874a" stroke-width="4" fill="none"/><line x1="150" y1="40" x2="280" y2="120" stroke="%234fb6a8" stroke-width="6"/><rect x="300" y="45" width="60" height="60" stroke="%239b7ede" stroke-width="4" fill="none"/></svg>',
     opsi: ['Garis', 'Bidang', 'Tekstur', 'Warna'],
-    jawaban: 0
+    jawaban: 0,
+    penjelasan: 'Garis adalah unsur seni rupa paling dasar yang terbentuk dari kumpulan atau rangkaian titik-titik yang terhubung secara berkesinambungan.'
   },
   {
     id: 'q1_2',
@@ -37,7 +38,8 @@ const DEFAULT_QUESTIONS = [
     materi: 'Alat & Bahan',
     pertanyaan: 'Pensil dengan kode "B" (Bold) memiliki karakteristik...',
     opsi: ['Keras dan tipis', 'Lunak dan hitam pekat', 'Sangat keras dan berwarna abu muda', 'Tidak dapat dihapus'],
-    jawaban: 1
+    jawaban: 1,
+    penjelasan: 'Kode "B" merupakan singkatan dari Bold yang menandakan pensil bernilai lunak sehingga menghasilkan garis berwarna hitam pekat.'
   },
   {
     id: 'q1_3',
@@ -45,7 +47,8 @@ const DEFAULT_QUESTIONS = [
     materi: 'Teknik Menggambar',
     pertanyaan: 'Teknik menggambar dengan membuat garis-garis sejajar atau bersilangan untuk menentukan gelap terang disebut...',
     opsi: ['Teknik Dusel', 'Teknik Arsir', 'Teknik Pointilis', 'Teknik Plakat'],
-    jawaban: 1
+    jawaban: 1,
+    penjelasan: 'Teknik Arsir dilakukan dengan membuat goresan garis-garis sejajar atau bersilangan berulang-ulang untuk menciptakan bayangan gelap terang.'
   },
   {
     id: 'q1_4',
@@ -53,7 +56,8 @@ const DEFAULT_QUESTIONS = [
     materi: 'Unsur Gambar',
     pertanyaan: 'Nilai raba dari suatu permukaan bidang dalam seni rupa dinamakan...',
     opsi: ['Gelap Terang', 'Tekstur', 'Bentuk', 'Ruang'],
-    jawaban: 1
+    jawaban: 1,
+    penjelasan: 'Tekstur adalah nilai raba dari suatu permukaan objek (seperti halus, kasar, atau bergelombang) yang dapat dirasakan melalui rabaan atau penglihatan.'
   },
   {
     id: 'q1_5',
@@ -61,7 +65,8 @@ const DEFAULT_QUESTIONS = [
     materi: 'Prinsip Menggambar',
     pertanyaan: 'Keseimbangan objek gambar pada bagian kiri dan kanan yang sama persis dinamakan keseimbangan...',
     opsi: ['Asimetris', 'Simetris', 'Sentral', 'Diagonal'],
-    jawaban: 1
+    jawaban: 1,
+    penjelasan: 'Keseimbangan simetris terjadi apabila objek pada bagian kiri dan kanan memiliki bentuk, ukuran, dan bobot visual yang sama persis.'
   },
 
   // Kelas 2 - Desain
@@ -72,7 +77,8 @@ const DEFAULT_QUESTIONS = [
     pertanyaan: 'Lihat ilustrasi campuran warna berikut. Warna sekunder dihasilkan dari campuran dua warna primer. Campuran warna merah dan kuning menghasilkan warna...',
     gambarData: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="160" viewBox="0 0 400 160"><rect width="100%" height="100%" fill="%232d3b34" rx="10"/><circle cx="120" cy="80" r="45" fill="%23e8874a"/><circle cx="190" cy="80" r="45" fill="%23f7d154" opacity="0.85"/><text x="260" y="85" fill="%23eef1ea" font-family="sans-serif" font-size="16" font-weight="bold">Merah + Kuning</text></svg>',
     opsi: ['Hijau', 'Ungu', 'Jingga / Oranye', 'Cokelat'],
-    jawaban: 2
+    jawaban: 2,
+    penjelasan: 'Campuran dua warna primer yaitu Merah dan Kuning menghasilkan warna sekunder Jingga (Oranye).'
   },
   {
     id: 'q2_2',
@@ -80,7 +86,8 @@ const DEFAULT_QUESTIONS = [
     materi: 'Prinsip Desain',
     pertanyaan: 'Prinsip desain yang menunjukkan perbedaan mencolok antara dua unsur yang berdekatan untuk menarik perhatian adalah...',
     opsi: ['Kontras', 'Keseimbangan', 'Proporsi', 'Kesatuan'],
-    jawaban: 0
+    jawaban: 0,
+    penjelasan: 'Kontras adalah prinsip desain yang menonjolkan perbedaan mencolok (seperti warna terang vs gelap, bentuk besar vs kecil) untuk menjadi pusat perhatian.'
   },
   {
     id: 'q2_3',
@@ -88,7 +95,8 @@ const DEFAULT_QUESTIONS = [
     materi: 'Komposisi',
     pertanyaan: 'Perbandingan ukuran antara bagian satu dengan bagian yang lain atau dengan keseluruhan dinamakan...',
     opsi: ['Irama', 'Proporsi', 'Harmoni', 'Keseimbangan'],
-    jawaban: 1
+    jawaban: 1,
+    penjelasan: 'Proporsi adalah kesesuaian dan perbandingan ukuran yang ideal antara satu elemen dengan elemen lainnya.'
   },
   {
     id: 'q2_4',
@@ -96,7 +104,8 @@ const DEFAULT_QUESTIONS = [
     materi: 'Teori Warna',
     pertanyaan: 'Kelompok warna primer dalam teori warna seni rupa terdiri dari...',
     opsi: ['Merah, Kuning, Biru', 'Merah, Hijau, Biru', 'Hitam, Putih, Abu-abu', 'Oranye, Hijau, Ungu'],
-    jawaban: 0
+    jawaban: 0,
+    penjelasan: 'Warna primer adalah warna dasar yang tidak bisa dibuat dari campuran warna lain, yaitu Merah, Kuning, dan Biru.'
   },
   {
     id: 'q2_5',
@@ -104,7 +113,8 @@ const DEFAULT_QUESTIONS = [
     materi: 'Prinsip Desain',
     pertanyaan: 'Pengulangan unsur-unsur visual secara teratur dan berkelanjutan menciptakan kesan gerak yang disebut...',
     opsi: ['Irama (Rhythm)', 'Kontras', 'Tekstur', 'Keseimbangan'],
-    jawaban: 0
+    jawaban: 0,
+    penjelasan: 'Irama (Rhythm) adalah pengulangan satu atau lebih unsur visual secara teratur yang memandu pandangan dan memberi kesan ritme/gerak.'
   },
 
   // Kelas 3 - Musik
@@ -114,7 +124,8 @@ const DEFAULT_QUESTIONS = [
     materi: 'Unsur Musik',
     pertanyaan: 'Cepat lambatnya laju ritme dalam sebuah lagu dinamakan...',
     opsi: ['Melodi', 'Tempo', 'Dinamik', 'Harmoni'],
-    jawaban: 1
+    jawaban: 1,
+    penjelasan: 'Tempo adalah kecepatan laju ritme atau ketukan dalam sebuah karya musik.'
   },
   {
     id: 'q3_2',
@@ -122,7 +133,8 @@ const DEFAULT_QUESTIONS = [
     materi: 'Alat Musik',
     pertanyaan: 'Alat musik yang sumber bunyinya berasal dari getaran dawai atau senar dinamakan...',
     opsi: ['Membranofon', 'Aerofon', 'Kordofon', 'Idiofon'],
-    jawaban: 2
+    jawaban: 2,
+    penjelasan: 'Kordofon adalah kategori alat musik yang menghasilkan suara dari petikan atau gesekan dawai/senar (seperti gitar, biola, kecapi).'
   },
   {
     id: 'q3_3',
@@ -130,7 +142,8 @@ const DEFAULT_QUESTIONS = [
     materi: 'Tangga Nada',
     pertanyaan: 'Tangga nada diatonis mayor memiliki susunan interval jarak nada...',
     opsi: ['1 - 1 - 1/2 - 1 - 1 - 1 - 1/2', '1 - 1/2 - 1 - 1 - 1/2 - 1 - 1', '1/2 - 1 - 1 - 1 - 1/2 - 1 - 1', '1 - 1 - 1 - 1/2 - 1 - 1 - 1/2'],
-    jawaban: 0
+    jawaban: 0,
+    penjelasan: 'Rumus susunan interval jarak nada untuk tangga nada diatonis mayor adalah 1 - 1 - 1/2 - 1 - 1 - 1 - 1/2.'
   },
   {
     id: 'q3_4',
@@ -138,7 +151,8 @@ const DEFAULT_QUESTIONS = [
     materi: 'Dinamika Musik',
     pertanyaan: 'Tanda dinamika "Forte" (f) dalam musik berarti lagu dinyanyikan atau dimainkan dengan...',
     opsi: ['Sangat Lembut', 'Lembut', 'Nyaring / Keras', 'Sangat Keras'],
-    jawaban: 2
+    jawaban: 2,
+    penjelasan: 'Forte (f) berarti nyaring atau keras dalam istilah petunjuk dinamika musik.'
   },
   {
     id: 'q3_5',
@@ -146,7 +160,8 @@ const DEFAULT_QUESTIONS = [
     materi: 'Alat Musik Tradisional',
     pertanyaan: 'Angklung merupakan alat musik tradisional asal Jawa Barat yang dimainkan dengan cara...',
     opsi: ['Dipetik', 'Digoyangkan', 'Ditiup', 'Dipukul'],
-    jawaban: 1
+    jawaban: 1,
+    penjelasan: 'Angklung dimainkan dengan cara digoyangkan menggunakan tangan hingga tabung bambu saling berbenturan dan menghasilkan nada.'
   }
 ];
 
@@ -159,4 +174,5 @@ function esc(s) {
     "'": '&#39;'
   }[c]));
 }
+
 

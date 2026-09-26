@@ -200,13 +200,27 @@ async function deleteQuestion(id) {
   if (!confirm('Hapus soal ini?')) return;
   try {
     if (typeof supabaseClient !== 'undefined' && supabaseClient) {
-      await sbDeleteQuestion(id);
-      await loadTeacherData();
+      const ok = await sbDeleteQuestion(id);
+      if (ok) {
+        for (let c = 1; c <= 3; c++) {
+          cache.q[c] = cache.q[c].filter(q => q.id !== id);
+        }
+        render();
+      } else {
+        alert('Gagal menghapus dari database.');
+      }
     } else if (db) {
       await db.collection('questions').doc(id).delete();
+      for (let c = 1; c <= 3; c++) {
+        cache.q[c] = cache.q[c].filter(q => q.id !== id);
+      }
+      render();
     } else {
       deleteLocalQuestion(id);
-      loadTeacherData();
+      for (let c = 1; c <= 3; c++) {
+        cache.q[c] = cache.q[c].filter(q => q.id !== id);
+      }
+      render();
     }
   } catch (e) {
     alert('Gagal menghapus.');
@@ -227,6 +241,19 @@ function readFileAsDataURL(file) {
     reader.onerror = e => reject(e);
     reader.readAsDataURL(file);
   });
+}
+
+function previewUploadedAudio(input) {
+  const file = input.files[0];
+  const container = document.getElementById('fAudioFilePreviewContainer');
+  const player = document.getElementById('fAudioFilePlayer');
+  if (file && player && container) {
+    const url = URL.createObjectURL(file);
+    player.src = url;
+    container.style.display = 'block';
+  } else if (container) {
+    container.style.display = 'none';
+  }
 }
 
 function tFormView() {
@@ -257,8 +284,13 @@ function tFormView() {
     ${gPreview ? `<p class="hint">Gambar tersimpan: <img src="${gPreview}" style="height:40px;border-radius:6px;vertical-align:middle;margin-left:6px;"></p>` : ''}
 
     <label class="field">Audio / Media (opsional, khusus file .mp3 atau .mp4)</label>
-    <input type="file" id="fAudio" accept=".mp3,.mp4,audio/mpeg,audio/mp3,video/mp4,audio/mp4">
-    ${aPreview ? `<p class="hint">Audio/Media tersimpan ✓ <audio controls src="${aPreview}" style="height:30px;vertical-align:middle;margin-left:6px;"></audio></p>` : ''}
+    <input type="file" id="fAudio" accept=".mp3,.mp4,audio/mpeg,audio/mp3,video/mp4,audio/mp4" onchange="previewUploadedAudio(this)">
+    <div id="fAudioFilePreviewContainer" style="display:none;margin-top:8px;">
+      <p class="hint" style="font-weight:600;color:var(--ok);">Preview Audio Pilihan Anda:
+        <audio id="fAudioFilePlayer" controls style="height:32px;vertical-align:middle;margin-left:6px;width:100%;max-width:320px;"></audio>
+      </p>
+    </div>
+    ${aPreview ? `<p class="hint">Audio tersimpan sebelumnya ✓ <audio controls src="${aPreview}" style="height:30px;vertical-align:middle;margin-left:6px;"></audio></p>` : ''}
 
     <label class="field">Pilihan Jawaban</label>
     ${[0, 1, 2, 3].map(i => `<div class="row" style="align-items:center;margin-bottom:8px;">
@@ -267,14 +299,18 @@ function tFormView() {
     </div>`).join('')}
     <p class="hint">Centang bulatan di samping pilihan yang benar.</p>
 
+    <label class="field">Pembahasan / Penjelasan Jawaban (Opsional)</label>
+    <textarea id="fPenjelasan" placeholder="Tulis alasan/penjelasan mengapa jawaban tersebut benar...">${esc(d.penjelasan || '')}</textarea>
+    <p class="hint">Penjelasan ini akan tampil bagi siswa saat melihat kunci jawaban & pembahasan setelah selesai kuis.</p>
+
     <div class="row">
-      <button class="btn btn-3" onclick="saveQuestion()">${editing ? 'Simpan Perubahan' : 'Tambah Soal'}</button>
+      <button class="btn btn-3" onclick="saveQuestion(event)">${editing ? 'Simpan Perubahan' : 'Tambah Soal'}</button>
       <button class="btn btn-ghost" onclick="go('t-dash')">Batal</button>
     </div>
   </div>`;
 }
 
-async function saveQuestion() {
+async function saveQuestion(evt) {
   const kelas = parseInt(document.getElementById('fKelas').value);
   const materi = document.getElementById('fMateri').value.trim();
   const pertanyaan = document.getElementById('fPertanyaan').value.trim();
@@ -282,15 +318,18 @@ async function saveQuestion() {
   const jRadio = document.querySelector('input[name=fJawaban]:checked');
   const waktuVal = parseInt(document.getElementById('fWaktu').value);
   const waktu = isNaN(waktuVal) ? 30 : Math.max(0, waktuVal);
+  const penjelasan = document.getElementById('fPenjelasan').value.trim();
 
   if (!pertanyaan || opsi.some(o => !o) || !jRadio) {
     alert('Lengkapi pertanyaan, semua pilihan, dan tandai jawaban benar.');
     return;
   }
   const jawaban = parseInt(jRadio.value);
-  const btn = event.target;
-  btn.disabled = true;
-  btn.textContent = 'Menyimpan...';
+  const btn = (evt && evt.target) ? evt.target : (window.event ? window.event.target : null);
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = 'Menyimpan...';
+  }
 
   const editing = editId ? (cache.q[teacherKelasTab].find(q => q.id === editId) || [1, 2, 3].map(k => cache.q[k]).flat().find(q => q.id === editId)) : null;
 
@@ -301,6 +340,7 @@ async function saveQuestion() {
     opsi,
     jawaban,
     waktu,
+    penjelasan: penjelasan || null,
     gambarData: editing ? (editing.gambarData || null) : null,
     gambarId: editing ? (editing.gambarId || null) : null,
     audioData: editing ? (editing.audioData || null) : null,
@@ -314,8 +354,10 @@ async function saveQuestion() {
     if (gFile) {
       if (!db && typeof supabaseClient === 'undefined' && gFile.size > MAX_LOCAL_FILE_SIZE) {
         alert('Ukuran gambar terlalu besar (' + (gFile.size / (1024 * 1024)).toFixed(1) + 'MB). Maksimal ukuran file media untuk database lokal adalah 2.5 MB.');
-        btn.disabled = false;
-        btn.textContent = editing ? 'Simpan Perubahan' : 'Tambah Soal';
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = editing ? 'Simpan Perubahan' : 'Tambah Soal';
+        }
         return;
       }
       data.gambarData = await readFileAsDataURL(gFile);
@@ -326,21 +368,26 @@ async function saveQuestion() {
         } catch (err) { }
       }
     }
-    const aFile = document.getElementById('fAudio').files[0];
+
+    const aFile = document.getElementById('fAudio')?.files[0];
     if (aFile) {
       const fn = aFile.name.toLowerCase();
       const isMp3 = fn.endsWith('.mp3') || aFile.type.includes('mpeg') || aFile.type.includes('mp3');
       const isMp4 = fn.endsWith('.mp4') || aFile.type.includes('mp4');
       if (!isMp3 && !isMp4) {
         alert('Hanya file berformat .mp3 atau .mp4 yang diperbolehkan!');
-        btn.disabled = false;
-        btn.textContent = editing ? 'Simpan Perubahan' : 'Tambah Soal';
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = editing ? 'Simpan Perubahan' : 'Tambah Soal';
+        }
         return;
       }
       if (!db && typeof supabaseClient === 'undefined' && aFile.size > MAX_LOCAL_FILE_SIZE) {
         alert('Ukuran file media/video terlalu besar (' + (aFile.size / (1024 * 1024)).toFixed(1) + 'MB). Penyimpanan lokal browser dibatasi maksimal 2.5 MB per file. Gunakan file berukuran lebih kecil atau potong durasi lagu/video.');
-        btn.disabled = false;
-        btn.textContent = editing ? 'Simpan Perubahan' : 'Tambah Soal';
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = editing ? 'Simpan Perubahan' : 'Tambah Soal';
+        }
         return;
       }
       data.audioData = await readFileAsDataURL(aFile);
@@ -353,24 +400,59 @@ async function saveQuestion() {
     }
 
     if (typeof supabaseClient !== 'undefined' && supabaseClient) {
-      await sbSaveQuestion({ ...data, id: editId });
-      await loadTeacherData();
+      const savedRes = await sbSaveQuestion({ ...data, id: editId });
+      if (savedRes) {
+        const savedQ = {
+          ...data,
+          ...savedRes,
+          gambarData: savedRes.gambarData || data.gambarData || null,
+          audioData: savedRes.audioData || data.audioData || null,
+          penjelasan: savedRes.penjelasan || data.penjelasan || null
+        };
+        const k = savedQ.kelas;
+        for (let c = 1; c <= 3; c++) {
+          cache.q[c] = cache.q[c].filter(q => q.id !== savedQ.id && q.id !== editId);
+        }
+        cache.q[k].push(savedQ);
+      } else {
+        console.warn("Supabase save returned null. Saving to local storage fallback...");
+        saveLocalQuestion(data, editId);
+        const all = getLocalQuestions();
+        cache.q = {
+          1: all.filter(q => Number(q.kelas) === 1),
+          2: all.filter(q => Number(q.kelas) === 2),
+          3: all.filter(q => Number(q.kelas) === 3)
+        };
+      }
     } else if (db) {
       if (editId) {
         await db.collection('questions').doc(editId).update(data);
       } else {
-        await db.collection('questions').add(data);
+        const ref = await db.collection('questions').add(data);
+        data.id = ref.id;
       }
+      const targetId = editId || data.id;
+      for (let c = 1; c <= 3; c++) {
+        cache.q[c] = cache.q[c].filter(q => q.id !== targetId);
+      }
+      cache.q[kelas].push({ id: targetId, ...data });
     } else {
       saveLocalQuestion(data, editId);
-      loadTeacherData();
+      const all = getLocalQuestions();
+      cache.q = {
+        1: all.filter(q => Number(q.kelas) === 1),
+        2: all.filter(q => Number(q.kelas) === 2),
+        3: all.filter(q => Number(q.kelas) === 3)
+      };
     }
     editId = null;
     go('t-dash');
   } catch (e) {
     alert('Gagal menyimpan: ' + (e && e.message ? e.message : 'coba lagi'));
-    btn.disabled = false;
-    btn.textContent = editId ? 'Simpan Perubahan' : 'Tambah Soal';
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = editId ? 'Simpan Perubahan' : 'Tambah Soal';
+    }
   }
 }
 
