@@ -24,7 +24,65 @@ function teacherLogin() {
   go('t-dash');
 }
 
+let teacherPollTimer = null;
+let sbResultsSub = null;
+
+function startTeacherAutoRefresh() {
+  if (teacherPollTimer) clearInterval(teacherPollTimer);
+  // Auto polling setiap 4 detik untuk update realtime tanpa reload
+  teacherPollTimer = setInterval(async () => {
+    if (currentView === 't-dash' || currentView === 't-hasil') {
+      await silentRefreshResults();
+    } else {
+      clearInterval(teacherPollTimer);
+      teacherPollTimer = null;
+    }
+  }, 4000);
+
+  if (typeof supabaseClient !== 'undefined' && supabaseClient && !sbResultsSub && typeof sbSubscribeResults === 'function') {
+    sbResultsSub = sbSubscribeResults(async () => {
+      await silentRefreshResults();
+    });
+  }
+}
+
+async function silentRefreshResults() {
+  if (typeof supabaseClient !== 'undefined' && supabaseClient) {
+    const sbR = await sbFetchResults();
+    if (sbR) {
+      const formatted = sbR.map(r => ({
+        nama: r.nama,
+        kelas: r.kelas,
+        skor: r.skor,
+        total: r.total_soal,
+        waktu: r.created_at ? new Date(r.created_at).getTime() : Date.now()
+      }));
+      if (JSON.stringify(formatted) !== JSON.stringify(cache.r)) {
+        cache.r = formatted;
+        if (currentView === 't-dash' || currentView === 't-hasil') {
+          render();
+        }
+      }
+    }
+  } else if (!db) {
+    const localR = getLocalResults();
+    if (JSON.stringify(localR) !== JSON.stringify(cache.r)) {
+      cache.r = localR;
+      if (currentView === 't-dash' || currentView === 't-hasil') {
+        render();
+      }
+    }
+  }
+}
+
+window.addEventListener('sanggar_result_updated', () => {
+  if (currentView === 't-dash' || currentView === 't-hasil') {
+    silentRefreshResults();
+  }
+});
+
 async function loadTeacherData() {
+  startTeacherAutoRefresh();
   if (typeof supabaseClient !== 'undefined' && supabaseClient) {
     const sbQ = await sbFetchQuestions();
     const sbR = await sbFetchResults();

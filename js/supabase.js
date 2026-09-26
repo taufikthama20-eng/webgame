@@ -203,3 +203,23 @@ async function sbSaveMateri(kelas, ringkasan) {
         return null;
     }
 }
+
+/**
+ * Berlangganan (Subscribe) perubahan real-time pada tabel results Supabase
+ */
+function sbSubscribeResults(onInsertCallback) {
+    if (!supabaseClient) return null;
+    try {
+        const channel = supabaseClient
+            .channel('public-results-changes')
+            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'results' }, payload => {
+                console.log("⚡ Realtime Supabase Result Inserted:", payload);
+                if (onInsertCallback) onInsertCallback(payload.new);
+            })
+            .subscribe();
+        return channel;
+    } catch (e) {
+        console.warn("Realtime subscription exception:", e);
+        return null;
+    }
+}

@@ -212,8 +212,10 @@ async function finishQuiz() {
     } else {
       saveLocalResult(resultObj);
     }
+    window.dispatchEvent(new CustomEvent('sanggar_result_updated', { detail: resultObj }));
   } catch (e) {
     saveLocalResult(resultObj);
+    window.dispatchEvent(new CustomEvent('sanggar_result_updated', { detail: resultObj }));
   }
 }
 
