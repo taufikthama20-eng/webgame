@@ -65,14 +65,15 @@ async function startQuiz() {
   const info = KELAS[S.kelas];
   document.getElementById('app').innerHTML = `<p class="empty">Memuat soal...</p>`;
   try {
-    let list = [];
+    let fetchedFromSupabase = false;
     if (typeof supabaseClient !== 'undefined' && supabaseClient) {
       const sbQ = await sbFetchQuestions(S.kelas);
-      if (sbQ && sbQ.length > 0) {
+      if (sbQ !== null) {
         list = sbQ;
+        fetchedFromSupabase = true;
       }
     }
-    if (!list || list.length === 0) {
+    if (!fetchedFromSupabase) {
       if (db) {
         try {
           const snap = await db.collection('questions').where('kelas', '==', S.kelas).get();
@@ -81,10 +82,10 @@ async function startQuiz() {
           console.warn("DB fetch failed, using local fallback", err);
         }
       }
-    }
-    if (!list || list.length === 0) {
-      const localQ = getLocalQuestions();
-      list = localQ.filter(q => Number(q.kelas) === Number(S.kelas));
+      if (!list || list.length === 0) {
+        const localQ = getLocalQuestions();
+        list = localQ.filter(q => Number(q.kelas) === Number(S.kelas));
+      }
     }
     list = list.sort(() => Math.random() - 0.5).slice(0, 10);
     if (list.length === 0) {
