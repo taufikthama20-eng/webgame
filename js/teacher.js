@@ -83,6 +83,8 @@ window.addEventListener('sanggar_result_updated', () => {
 
 async function loadTeacherData() {
   startTeacherAutoRefresh();
+  // Load audio library
+  await loadAudioLibrary();
   if (typeof supabaseClient !== 'undefined' && supabaseClient) {
     const sbQ = await sbFetchQuestions();
     const sbR = await sbFetchResults();
@@ -134,6 +136,19 @@ async function loadTeacherData() {
   }
 }
 
+async function loadAudioLibrary() {
+  if (typeof supabaseClient !== 'undefined' && supabaseClient) {
+    const sbAudio = await sbFetchAudioLibrary();
+    if (sbAudio) {
+      cache.audioLib = sbAudio;
+    } else {
+      cache.audioLib = getLocalAudioLib();
+    }
+  } else {
+    cache.audioLib = getLocalAudioLib();
+  }
+}
+
 /* TEACHER: Dashboard */
 function tDashView() {
   const total = cache.q[1].length + cache.q[2].length + cache.q[3].length;
@@ -152,6 +167,7 @@ function tDashView() {
   </div>
   <div class="row">
     <button class="btn btn-3" onclick="openForm(null)">+ Tambah Soal</button>
+    <button class="btn btn-2" onclick="go('t-audio')">🎵 Kelola Audio Library</button>
     <button class="btn btn-ghost" onclick="go('t-hasil')">Lihat Nilai Siswa</button>
   </div>
   <div class="tabbar" style="margin-top:18px;">
@@ -173,7 +189,7 @@ function tDashView() {
     <div class="qlist-item">
       <div>
         <div class="qtxt">${esc(q.pertanyaan)}</div>
-        <div class="qmeta">${q.materi ? esc(q.materi) + ' · ' : ''}${q.gambarId ? '📷 gambar · ' : ''}${q.audioId ? '🎵 audio · ' : ''}jawaban: ${esc(q.opsi[q.jawaban] || '')}</div>
+        <div class="qmeta">${q.materi ? esc(q.materi) + ' · ' : ''}${q.gambarData || q.gambarId ? '📷 gambar · ' : ''}${(q.audioData || q.audio_data || q.audioLibId || q.audio_lib_id || q.audioId) ? '🎵 audio · ' : ''}jawaban: ${esc(q.opsi[q.jawaban] || '')}</div>
       </div>
       <div class="qlist-actions">
         <button class="btn btn-ghost btn-sm" onclick="openForm('${q.id}')">Edit</button>
@@ -230,6 +246,7 @@ async function deleteQuestion(id) {
 /* TEACHER: Form Tambah/Edit Soal */
 function openForm(id) {
   editId = id;
+  selectedAudioLibId = null;
   go('t-form');
 }
 
@@ -256,11 +273,20 @@ function previewUploadedAudio(input) {
   }
 }
 
+let selectedAudioLibId = null;
+
 function tFormView() {
   const editing = editId ? cache.q[teacherKelasTab].find(q => q.id === editId) || [1, 2, 3].map(k => cache.q[k]).flat().find(q => q.id === editId) : null;
-  const d = editing || { kelas: teacherKelasTab, materi: '', pertanyaan: '', opsi: ['', '', '', ''], jawaban: 0, gambarData: null, gambarId: null, audioData: null, audioId: null };
+  const d = editing || { kelas: teacherKelasTab, materi: '', pertanyaan: '', opsi: ['', '', '', ''], jawaban: 0, gambarData: null, gambarId: null, audioData: null, audioId: null, audioLibId: null };
   const gPreview = d.gambarData || (d.gambarId ? `/_blob/${d.gambarId}` : null);
   const aPreview = d.audioData || (d.audioId ? `/_blob/${d.audioId}` : null);
+
+  // Pre-select audio library item if editing
+  if (editing && editing.audioLibId && !selectedAudioLibId) {
+    selectedAudioLibId = editing.audioLibId;
+  }
+
+  const audioLibItems = cache.audioLib || [];
 
   return `
   <button class="back" onclick="go('t-dash')">&larr; Kembali</button>
@@ -283,16 +309,44 @@ function tFormView() {
     <input type="file" id="fGambar" accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml">
     ${gPreview ? `<p class="hint">Gambar tersimpan: <img src="${gPreview}" style="height:40px;border-radius:6px;vertical-align:middle;margin-left:6px;"></p>` : ''}
 
-    <label class="field">Audio / Media (opsional, khusus file .mp3 atau .mp4)</label>
-    <input type="file" id="fAudio" accept=".mp3,.mp4,audio/mpeg,audio/mp3,video/mp4,audio/mp4" onchange="previewUploadedAudio(this)">
-    <div id="fAudioFilePreviewContainer" style="display:none;margin-top:8px;">
-      <p class="hint" style="font-weight:600;color:var(--ok);">Preview Audio Pilihan Anda:
-        <audio id="fAudioFilePlayer" controls style="height:32px;vertical-align:middle;margin-left:6px;width:100%;max-width:320px;"></audio>
-      </p>
+    <label class="field" style="font-size:13px;font-weight:700;color:var(--k2);margin-top:8px;">🎵 Audio untuk Soal (Opsional)</label>
+    ${audioLibItems.length > 0 ? `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+      <p class="hint" style="margin-bottom:0;">Pilih audio dari library:</p>
+      <span class="hint" style="margin-bottom:0;color:var(--k2);">${audioLibItems.length} audio tersedia</span>
     </div>
-    ${aPreview ? `<p class="hint">Audio tersimpan sebelumnya ✓ <audio controls src="${aPreview}" style="height:30px;vertical-align:middle;margin-left:6px;"></audio></p>` : ''}
+    <input type="text" id="audioPickerSearch" placeholder=" Cari judul audio..." oninput="filterAudioPicker(this.value)" style="margin-bottom:8px;padding:8px 12px;font-size:13px;">
+    <div class="audio-picker" id="audioPicker">
+      <div class="audio-picker-item ${!selectedAudioLibId ? 'selected' : ''}" onclick="pickAudioLib(null)">
+        <span style="font-size:13px;color:var(--chalk-dim);"> Tanpa Audio</span>
+      </div>
+      ${audioLibItems.map(a => `
+      <div class="audio-picker-item ${selectedAudioLibId === a.id ? 'selected' : ''}" data-nama="${esc(a.nama)}" onclick="pickAudioLib('${a.id}')">
+        <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;">
+          <span style="font-size:18px;">🎵</span>
+          <div style="flex:1;min-width:0;">
+            <div style="font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(a.nama)}</div>
+            <audio controls src="${a.audio_data}" style="height:28px;width:100%;max-width:220px;margin-top:4px;" onclick="event.stopPropagation()"></audio>
+          </div>
+        </div>
+        ${selectedAudioLibId === a.id ? '<span style="color:var(--ok);font-weight:700;font-size:18px;">✓</span>' : ''}
+      </div>`).join('')}
+    </div>
+    ` : `<p class="hint">Belum ada audio di library. <a href="#" onclick="go('t-audio');return false;" style="color:var(--k2);font-weight:700;">Upload audio dulu →</a></p>`}
 
-    <label class="field">Pilihan Jawaban</label>
+    <div style="margin-top:10px;padding-top:10px;border-top:1px dashed var(--line);">
+      <label class="field">Atau upload file audio baru langsung (.mp3/.mp4)</label>
+      <input type="file" id="fAudio" accept=".mp3,.mp4,audio/mpeg,audio/mp3,video/mp4,audio/mp4" onchange="previewUploadedAudio(this)">
+      <div id="fAudioFilePreviewContainer" style="display:none;margin-top:8px;">
+        <p class="hint" style="font-weight:600;color:var(--ok);">Preview Audio Pilihan Anda:
+          <audio id="fAudioFilePlayer" controls style="height:32px;vertical-align:middle;margin-left:6px;width:100%;max-width:320px;"></audio>
+        </p>
+      </div>
+      <p class="hint">Jika Anda upload file langsung, audio ini juga akan otomatis masuk ke Audio Library.</p>
+    </div>
+    ${aPreview && !selectedAudioLibId ? `<p class="hint">Audio tersimpan sebelumnya ✓ <audio controls src="${aPreview}" style="height:30px;vertical-align:middle;margin-left:6px;"></audio></p>` : ''}
+
+    <label class="field" style="margin-top:12px;">Pilihan Jawaban</label>
     ${[0, 1, 2, 3].map(i => `<div class="row" style="align-items:center;margin-bottom:8px;">
       <input type="radio" name="fJawaban" value="${i}" ${d.jawaban == i ? 'checked' : ''} style="width:auto;margin:0;">
       <input type="text" id="fOpsi${i}" value="${esc(d.opsi[i] || '')}" placeholder="Pilihan ${String.fromCharCode(65 + i)}" style="flex:1;margin-bottom:0;">
@@ -301,13 +355,42 @@ function tFormView() {
 
     <label class="field">Pembahasan / Penjelasan Jawaban (Opsional)</label>
     <textarea id="fPenjelasan" placeholder="Tulis alasan/penjelasan mengapa jawaban tersebut benar...">${esc(d.penjelasan || '')}</textarea>
-    <p class="hint">Penjelasan ini akan tampil bagi siswa saat melihat kunci jawaban & pembahasan setelah selesai kuis.</p>
+    <p class="hint">Penjelasan ini akan tampil bagi siswa saat melihat kunci jawaban &amp; pembahasan setelah selesai kuis.</p>
 
     <div class="row">
       <button class="btn btn-3" onclick="saveQuestion(event)">${editing ? 'Simpan Perubahan' : 'Tambah Soal'}</button>
       <button class="btn btn-ghost" onclick="go('t-dash')">Batal</button>
     </div>
   </div>`;
+}
+
+function pickAudioLib(id) {
+  selectedAudioLibId = id;
+  const picker = document.getElementById('audioPicker');
+  if (!picker) return;
+
+  const items = picker.querySelectorAll('.audio-picker-item');
+  items.forEach(el => {
+    // Check if this element corresponds to the selected id
+    const clickAttr = el.getAttribute('onclick') || '';
+    const matchesNull = (id === null && clickAttr.includes('null'));
+    const matchesId = (id !== null && clickAttr.includes(`'${id}'`));
+
+    if (matchesNull || matchesId) {
+      el.classList.add('selected');
+      if (id !== null && !el.querySelector('.check-mark')) {
+        const check = document.createElement('span');
+        check.className = 'check-mark';
+        check.style.cssText = 'color:var(--ok);font-weight:700;font-size:18px;';
+        check.textContent = '✓';
+        el.appendChild(check);
+      }
+    } else {
+      el.classList.remove('selected');
+      const check = el.querySelector('.check-mark');
+      if (check) check.remove();
+    }
+  });
 }
 
 async function saveQuestion(evt) {
@@ -344,8 +427,18 @@ async function saveQuestion(evt) {
     gambarData: editing ? (editing.gambarData || null) : null,
     gambarId: editing ? (editing.gambarId || null) : null,
     audioData: editing ? (editing.audioData || null) : null,
-    audioId: editing ? (editing.audioId || null) : null
+    audioId: editing ? (editing.audioId || null) : null,
+    audioLibId: null
   };
+
+  // If an audio library item is selected, use its data
+  if (selectedAudioLibId) {
+    const libItem = (cache.audioLib || []).find(a => a.id === selectedAudioLibId);
+    if (libItem) {
+      data.audioData = libItem.audio_data;
+      data.audioLibId = libItem.id;
+    }
+  }
 
   try {
     const MAX_LOCAL_FILE_SIZE = 2.5 * 1024 * 1024; // 2.5 MB
@@ -396,6 +489,24 @@ async function saveQuestion(evt) {
           const up = await assets.upload(aFile, { type: isMp4 ? 'video/mp4' : 'audio/mpeg' });
           data.audioId = up.id;
         } catch (err) { }
+      }
+      // Auto-save uploaded audio to library
+      const audioLibName = fn.replace(/\.[^.]+$/, '');
+      const audioLibObj = { nama: audioLibName, audio_data: data.audioData };
+      if (typeof supabaseClient !== 'undefined' && supabaseClient) {
+        const saved = await sbSaveAudio(audioLibObj);
+        if (saved) {
+          data.audioLibId = saved.id;
+          cache.audioLib.unshift(saved);
+        } else {
+          const localSaved = saveLocalAudio({ id: 'local_audio_' + Date.now(), ...audioLibObj });
+          if (localSaved) data.audioLibId = localSaved.id;
+          cache.audioLib = getLocalAudioLib();
+        }
+      } else {
+        const localSaved = saveLocalAudio({ id: 'local_audio_' + Date.now(), ...audioLibObj });
+        if (localSaved) data.audioLibId = localSaved.id;
+        cache.audioLib = getLocalAudioLib();
       }
     }
 
@@ -480,4 +591,200 @@ function tHasilView() {
       </tbody>
     </table>`}
   </div>`;
+}
+
+/* ================ AUDIO LIBRARY ================ */
+
+function tAudioLibView() {
+  const lib = cache.audioLib || [];
+  return `
+  <button class="back" onclick="go('t-dash')">&larr; Kembali ke Dashboard</button>
+  <div style="display:flex;justify-content:space-between;align-items:center;">
+    <h2>🎵 Audio Library</h2>
+    <span class="badge badge-2" style="font-size:13px;">${lib.length} audio</span>
+  </div>
+  <p class="sub">Upload dan kelola file audio untuk digunakan dalam soal kuis.</p>
+
+  <!-- Form Upload Audio Baru -->
+  <div class="card" style="border-left:4px solid var(--k2);">
+    <label class="field" style="font-weight:700;color:var(--k2);">➕ Upload Audio Baru</label>
+    <input type="text" id="audioLibName" placeholder="Nama / judul audio (contoh: Lagu Ampar-Ampar Pisang)" style="margin-bottom:8px;">
+    <input type="file" id="audioLibFile" accept=".mp3,.mp4,audio/mpeg,audio/mp3,video/mp4,audio/mp4" onchange="previewLibAudio(this)">
+    <div id="libAudioPreviewContainer" style="display:none;margin-top:8px;">
+      <p class="hint" style="font-weight:600;color:var(--ok);">Preview:
+        <audio id="libAudioPlayer" controls style="height:32px;vertical-align:middle;margin-left:6px;width:100%;max-width:320px;"></audio>
+      </p>
+    </div>
+    <div class="row" style="margin-top:10px;">
+      <button class="btn btn-2" onclick="uploadToAudioLib()">⬆️ Upload ke Library</button>
+      <span id="audioLibSaveMsg" class="hint" style="align-self:center;color:var(--ok);font-weight:bold;display:none;">Berhasil disimpan ✓</span>
+    </div>
+  </div>
+
+  <!-- Daftar Audio -->
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+      <label class="field" style="font-weight:700;margin-bottom:0;">📂 Daftar Audio Tersimpan</label>
+      <span class="hint" style="margin-bottom:0;color:var(--k2);">${lib.length} file</span>
+    </div>
+    ${lib.length > 0 ? `
+    <input type="text" id="audioLibSearch" placeholder=" Cari audio di library..." oninput="filterAudioLib(this.value)" style="margin-bottom:12px;padding:8px 12px;font-size:13px;">
+    <div style="display:flex;flex-direction:column;gap:10px;" id="audioLibList">
+      ${lib.map(a => `
+      <div class="audio-lib-item" data-nama="${esc(a.nama)}">
+        <div style="display:flex;align-items:center;gap:12px;flex:1;min-width:0;">
+          <span style="font-size:24px;">🎵</span>
+          <div style="flex:1;min-width:0;">
+            <div style="font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(a.nama)}</div>
+            <audio controls src="${a.audio_data}" style="height:32px;width:100%;max-width:300px;margin-top:4px;"></audio>
+          </div>
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="deleteAudioLib('${a.id}')" style="color:var(--bad);border-color:var(--bad);">🗑 Hapus</button>
+      </div>`).join('')}
+    </div>` : `<p class="empty">Belum ada audio di library. Upload audio pertamamu di atas!</p>`}
+  </div>`;
+}
+
+function filterAudioPicker(q) {
+  const query = (q || '').toLowerCase().trim();
+  const items = document.querySelectorAll('#audioPicker .audio-picker-item[data-nama]');
+  items.forEach(el => {
+    const nama = el.getAttribute('data-nama') || '';
+    if (!query || nama.toLowerCase().includes(query)) {
+      el.style.display = 'flex';
+    } else {
+      el.style.display = 'none';
+    }
+  });
+}
+
+function filterAudioLib(q) {
+  const query = (q || '').toLowerCase().trim();
+  const items = document.querySelectorAll('#audioLibList .audio-lib-item[data-nama]');
+  items.forEach(el => {
+    const nama = el.getAttribute('data-nama') || '';
+    if (!query || nama.toLowerCase().includes(query)) {
+      el.style.display = 'flex';
+    } else {
+      el.style.display = 'none';
+    }
+  });
+}
+
+function previewLibAudio(input) {
+  const file = input.files[0];
+  const container = document.getElementById('libAudioPreviewContainer');
+  const player = document.getElementById('libAudioPlayer');
+  if (file && player && container) {
+    const url = URL.createObjectURL(file);
+    player.src = url;
+    container.style.display = 'block';
+  } else if (container) {
+    container.style.display = 'none';
+  }
+}
+
+async function uploadToAudioLib() {
+  const namaInput = document.getElementById('audioLibName');
+  const fileInput = document.getElementById('audioLibFile');
+  const nama = (namaInput ? namaInput.value.trim() : '');
+  const file = fileInput ? fileInput.files[0] : null;
+  const btn = document.querySelector('button[onclick="uploadToAudioLib()"]');
+
+  if (!file) {
+    alert('Pilih file audio terlebih dahulu.');
+    return;
+  }
+
+  const fn = file.name.toLowerCase();
+  const isMp3 = fn.endsWith('.mp3') || file.type.includes('mpeg') || file.type.includes('mp3');
+  const isMp4 = fn.endsWith('.mp4') || file.type.includes('mp4');
+  if (!isMp3 && !isMp4) {
+    alert('Hanya file berformat .mp3 atau .mp4 yang diperbolehkan!');
+    return;
+  }
+
+  // Batas ukuran file 3 MB untuk stabilitas Base64 data URL
+  const MAX_SIZE = 3 * 1024 * 1024;
+  if (file.size > MAX_SIZE) {
+    alert('Ukuran file audio terlalu besar (' + (file.size / (1024 * 1024)).toFixed(1) + ' MB). Maksimal ukuran file adalah 3 MB. Harap gunakan file audio berukuran lebih kecil atau potong durasinya.');
+    return;
+  }
+
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = '⏳ Mengupload...';
+  }
+
+  try {
+    const audioName = nama || fn.replace(/\.[^.]+$/, '');
+    const audioDataURL = await readFileAsDataURL(file);
+    const audioObj = { nama: audioName, audio_data: audioDataURL };
+
+    let success = false;
+    if (typeof supabaseClient !== 'undefined' && supabaseClient) {
+      const saved = await sbSaveAudio(audioObj);
+      if (saved) {
+        cache.audioLib.unshift(saved);
+        success = true;
+      } else {
+        console.warn("Supabase save null, trying local fallback...");
+        const localSaved = saveLocalAudio({ id: 'local_audio_' + Date.now(), ...audioObj });
+        if (localSaved) {
+          cache.audioLib = getLocalAudioLib();
+          success = true;
+        }
+      }
+    } else {
+      const localSaved = saveLocalAudio({ id: 'local_audio_' + Date.now(), ...audioObj });
+      if (localSaved) {
+        cache.audioLib = getLocalAudioLib();
+        success = true;
+      }
+    }
+
+    if (!success) {
+      alert('Gagal menyimpan file audio. Pastikan ukuran file tidak terlalu besar.');
+    } else {
+      // Clear inputs
+      if (namaInput) namaInput.value = '';
+      if (fileInput) fileInput.value = '';
+      const preview = document.getElementById('libAudioPreviewContainer');
+      if (preview) preview.style.display = 'none';
+    }
+
+    render();
+    setTimeout(() => {
+      const msg = document.getElementById('audioLibSaveMsg');
+      if (msg) {
+        msg.style.display = 'inline';
+        setTimeout(() => { msg.style.display = 'none'; }, 2500);
+      }
+    }, 100);
+  } catch (err) {
+    console.error("Audio upload exception:", err);
+    alert('Terjadi kesalahan saat upload audio: ' + err.message);
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = '⬆️ Upload ke Library';
+    }
+  }
+}
+
+async function deleteAudioLib(id) {
+  if (!confirm('Hapus audio ini dari library?')) return;
+  if (typeof supabaseClient !== 'undefined' && supabaseClient) {
+    const ok = await sbDeleteAudio(id);
+    if (ok) {
+      cache.audioLib = cache.audioLib.filter(a => a.id !== id);
+    } else {
+      alert('Gagal menghapus dari database.');
+      return;
+    }
+  } else {
+    deleteLocalAudio(id);
+    cache.audioLib = getLocalAudioLib();
+  }
+  render();
 }

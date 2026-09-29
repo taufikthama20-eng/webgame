@@ -239,3 +239,75 @@ function sbSubscribeResults(onInsertCallback) {
         return null;
     }
 }
+
+/* ---------------- Audio Library API ---------------- */
+
+/**
+ * Mengambil seluruh audio dari library di Supabase
+ */
+async function sbFetchAudioLibrary() {
+    if (!supabaseClient) return null;
+    try {
+        const { data, error } = await supabaseClient
+            .from('audio_library')
+            .select('*')
+            .order('created_at', { ascending: false });
+        if (error) {
+            console.error("Supabase Error [sbFetchAudioLibrary]:", error);
+            return null;
+        }
+        return data;
+    } catch (e) {
+        console.error("Network / Supabase Exception [sbFetchAudioLibrary]:", e);
+        return null;
+    }
+}
+
+/**
+ * Menyimpan audio baru ke library di Supabase
+ */
+async function sbSaveAudio(audioObj) {
+    if (!supabaseClient) return null;
+    try {
+        const payload = {
+            nama: audioObj.nama,
+            audio_data: audioObj.audio_data
+        };
+        if (audioObj.id && !String(audioObj.id).startsWith('local_')) {
+            payload.id = audioObj.id;
+        }
+        const { data, error } = await supabaseClient
+            .from('audio_library')
+            .upsert(payload)
+            .select();
+        if (error) {
+            console.error("Supabase Error [sbSaveAudio]:", error);
+            return null;
+        }
+        return data ? data[0] : null;
+    } catch (e) {
+        console.error("Network / Supabase Exception [sbSaveAudio]:", e);
+        return null;
+    }
+}
+
+/**
+ * Menghapus audio dari library di Supabase
+ */
+async function sbDeleteAudio(id) {
+    if (!supabaseClient) return false;
+    try {
+        const { error } = await supabaseClient
+            .from('audio_library')
+            .delete()
+            .eq('id', id);
+        if (error) {
+            console.error("Supabase Error [sbDeleteAudio]:", error);
+            return false;
+        }
+        return true;
+    } catch (e) {
+        console.error("Network / Supabase Exception [sbDeleteAudio]:", e);
+        return false;
+    }
+}

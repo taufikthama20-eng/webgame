@@ -17,7 +17,8 @@ let editId = null;
 let cache = {
     q: { 1: [], 2: [], 3: [] },
     r: [],
-    myResults: []
+    myResults: [],
+    audioLib: []
 };
 
 async function initCaps() {
@@ -110,6 +111,46 @@ function saveMateriRingkasan(kelas, ringkasan) {
         localStorage.setItem('sb_materi', JSON.stringify(map));
     } catch (e) {
         console.warn("Failed to save local materi ringkasan:", e);
+    }
+}
+
+/* ---------------- Audio Library Local Storage Fallbacks ---------------- */
+function getLocalAudioLib() {
+    try {
+        const stored = localStorage.getItem('sb_audio_library');
+        return stored ? JSON.parse(stored) : [];
+    } catch (e) {
+        return [];
+    }
+}
+
+function saveLocalAudio(audioObj) {
+    try {
+        const list = getLocalAudioLib();
+        const existing = list.findIndex(a => a.id === audioObj.id);
+        if (existing !== -1) {
+            list[existing] = { ...list[existing], ...audioObj };
+        } else {
+            const newObj = { id: audioObj.id || ('local_audio_' + Date.now()), ...audioObj };
+            list.unshift(newObj);
+        }
+        localStorage.setItem('sb_audio_library', JSON.stringify(list));
+        return list[0];
+    } catch (e) {
+        console.warn("Failed to save local audio:", e);
+        return null;
+    }
+}
+
+function deleteLocalAudio(id) {
+    try {
+        let list = getLocalAudioLib();
+        list = list.filter(a => a.id !== id);
+        localStorage.setItem('sb_audio_library', JSON.stringify(list));
+        return true;
+    } catch (e) {
+        console.warn("Failed to delete local audio:", e);
+        return false;
     }
 }
 

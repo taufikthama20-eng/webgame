@@ -54,7 +54,8 @@ const views = {
   't-login': tLoginView,
   't-dash': tDashView,
   't-form': tFormView,
-  't-hasil': tHasilView
+  't-hasil': tHasilView,
+  't-audio': tAudioLibView
 };
 
 function render() {
