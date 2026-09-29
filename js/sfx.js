@@ -16,6 +16,39 @@ function getAudioContext() {
     return audioCtx;
 }
 
+/**
+ * Mobile Web Audio API Unlocker
+ * HP (Android & iOS Safari) memblokir efek suara Web Audio API kecuali jika sudah di-unlock lewat sentuhan/tap pertama pengguna.
+ */
+function initAudioUnlock() {
+    const unlock = () => {
+        const ctx = getAudioContext();
+        if (ctx && ctx.state === 'suspended') {
+            ctx.resume();
+        }
+        if (ctx && ctx.state === 'running') {
+            try {
+                const buffer = ctx.createBuffer(1, 1, 22050);
+                const source = ctx.createBufferSource();
+                source.buffer = buffer;
+                source.connect(ctx.destination);
+                source.start(0);
+            } catch (e) { }
+            ['touchstart', 'touchend', 'mousedown', 'click'].forEach(evt => {
+                document.removeEventListener(evt, unlock, true);
+            });
+        }
+    };
+    ['touchstart', 'touchend', 'mousedown', 'click'].forEach(evt => {
+        document.addEventListener(evt, unlock, true);
+    });
+}
+
+if (typeof window !== 'undefined') {
+    document.addEventListener('DOMContentLoaded', initAudioUnlock);
+    initAudioUnlock();
+}
+
 function isSfxMuted() {
     return sfxMuted;
 }
