@@ -47,6 +47,7 @@ const views = {
   's-name': sNameView,
   's-kelas': sKelasView,
   's-materi': sMateriView,
+  's-flashcard': sFlashcardView,
   's-quiz': sQuizView,
   's-result': sResultView,
   's-pembahasan': sPembahasanView,

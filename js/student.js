@@ -56,9 +56,225 @@ function sMateriView() {
   <div class="card"><p class="sub" style="margin-bottom:0;">${esc(ringkasan)}</p></div>
   <div class="row">
     <button class="btn" style="background:var(${info.accent});color:#1c1c1c;" onclick="startQuiz()">Mulai Kuis</button>
+    <button class="btn btn-2" onclick="startFlashcards()">🎴 Mode Flashcard (Hafalan)</button>
     <button class="btn btn-ghost" onclick="openRiwayat()">Lihat Riwayat Nilai</button>
   </div>`;
 }
+
+/* ==========================================================================
+   MODE FLASHCARD (KARTU BELAJAR DIGITAL 3D)
+   ========================================================================== */
+
+const FLASHCARDS_DATABASE = {
+  1: [
+    {
+      kategori: '🎨 Seni Rupa',
+      topik: 'Unsur Seni Rupa',
+      depan: 'Apa saja 8 unsur dasar pembentuk karya Seni Rupa?',
+      belakang: '1. Titik\n2. Garis\n3. Bidang\n4. Bentuk\n5. Ruang\n6. Warna\n7. Tekstur\n8. Gelap Terang',
+      tip: '💡 Hafalan Cepat: Ti-Ga-Bi-Ben-Ru-War-Tek-Ge'
+    },
+    {
+      kategori: '🎨 Seni Rupa',
+      topik: 'Teori Warna',
+      depan: 'Apa perbedaan Warna Primer, Sekunder, dan Tersier?',
+      belakang: '• Primer: Warna pokok (Merah, Kuning, Biru)\n• Sekunder: Campuran 2 warna primer (Oranye, Hijau, Ungu)\n• Tersier: Campuran warna primer + sekunder (Cokelat, dll.)',
+      tip: '💡 Contoh: Merah + Kuning = Oranye'
+    },
+    {
+      kategori: '🎵 Seni Musik',
+      topik: 'Unsur Musik',
+      depan: 'Apa yang dimaksud dengan Ritme (Irama) dalam musik?',
+      belakang: 'Ritme adalah panjang pendeknya bunyi serta nilai ketukan yang bergerak secara berulang dan teratur dalam sebuah lagu.',
+      tip: '💡 Ritme menentukan tempo dan ketukan musik'
+    },
+    {
+      kategori: '🎵 Seni Musik',
+      topik: 'Alat Musik Tradisional',
+      depan: 'Sebutkan 4 pengelompokan sumber bunyi alat musik (Idioperkusi, Membranofon, Aerofon, Kordofon)!',
+      belakang: '• Idiofon: Getaran bahan alat itu sendiri (Angklung, Kolintang)\n• Membranofon: Selaput/Kulit (Gendang, Rebana)\n• Aerofon: Hembusan udara (Suling, Saxophone)\n• Kordofon: Senar/Dawai (Gitar, Kecapi)',
+      tip: '💡 Hafalan: Idio (Benda), Memb (Kulit), Aero (Udara), Kordo (Dawai)'
+    }
+  ],
+  2: [
+    {
+      kategori: '🎨 Seni Rupa',
+      topik: 'Gambar Ilustrasi & Poster',
+      depan: 'Apa 3 syarat utama Gambar Poster yang baik dan efektif?',
+      belakang: '1. Menggunakan kalimat singkat, padat, dan jelas.\n2. Gambar menarik dengan kombinasi warna kontras.\n3. Pesan persuasif (mengajak) dan mudah dibaca dari jauh.',
+      tip: '💡 Kunci: Visual mencolok + Kata persuasif'
+    },
+    {
+      kategori: '🎵 Seni Musik',
+      topik: 'Lagu Daerah & Vokal',
+      depan: 'Apa perbedaan Bernyanyi Unisono dengan Grup Vokal?',
+      belakang: '• Unisono: Bernyanyi bersama-sama dengan 1 jalur nada melodi saja.\n• Grup Vokal: Bernyanyi dengan pembagian 2 nada atau lebih (Sopran, Alto, Tenor, Bass).',
+      tip: '💡 Uni = Satu nada melodi utama'
+    }
+  ],
+  3: [
+    {
+      kategori: '🎨 Seni Rupa',
+      topik: 'Seni Lukis & Patung',
+      depan: 'Apa yang dimaksud dengan Aliran Seni Lukis Non-Representatif?',
+      belakang: 'Aliran seni lukis yang tidak meniru bentuk alam nyata, melainkan mengutamakan ekspresi garis, bentuk geometris, dan komposisi warna abstrak.',
+      tip: '💡 Non-representatif = Abstrak (tanpa tiruan alam)'
+    },
+    {
+      kategori: '🎵 Seni Musik',
+      topik: 'Ansambel Musik',
+      depan: 'Apa fungsi Alat Musik Harmonis dalam ansambel musik?',
+      belakang: 'Fungsinya adalah memainkan akor/kunci lagu untuk mengiringi melodi utama (Contoh: Piano, Gitar, Keyboard, Ukulele).',
+      tip: '💡 Harmonis = Akor pengiring nada'
+    }
+  ]
+};
+
+let flashcardState = {
+  list: [],
+  idx: 0,
+  flipped: false
+};
+
+function startFlashcards() {
+  const k = S.kelas || 1;
+  let cards = [...(FLASHCARDS_DATABASE[k] || [])];
+
+  // Tambahkan soal dari bank soal lokal/cache untuk memperbanyak kartu
+  const qList = (cache.q && cache.q[k]) ? cache.q[k] : [];
+  qList.forEach(q => {
+    cards.push({
+      kategori: q.materi ? `📌 ${q.materi}` : '❓ Soal Kuis',
+      topik: 'Soal & Pembahasan',
+      depan: q.pertanyaan,
+      belakang: `✅ Jawaban Benar:\n${q.opsi[q.jawaban]}\n\n${q.penjelasan ? '💡 Pembahasan:\n' + q.penjelasan : ''}`,
+      gambar: q.gambarData || (q.gambarId ? `/_blob/${q.gambarId}` : null),
+      audio: getQuestionAudioSrc(q)
+    });
+  });
+
+  if (cards.length === 0) {
+    alert('Belum ada materi kartu flashcard untuk kelas ini.');
+    return;
+  }
+
+  flashcardState = {
+    list: cards,
+    idx: 0,
+    flipped: false
+  };
+
+  go('s-flashcard');
+}
+
+function flipFlashcard() {
+  flashcardState.flipped = !flashcardState.flipped;
+  if (typeof playSfxTick === 'function') playSfxTick();
+  const cardEl = document.getElementById('flashcardCard');
+  if (cardEl) {
+    if (flashcardState.flipped) {
+      cardEl.classList.add('flipped');
+    } else {
+      cardEl.classList.remove('flipped');
+    }
+  }
+}
+
+function prevFlashcard() {
+  if (flashcardState.idx > 0) {
+    flashcardState.idx--;
+    flashcardState.flipped = false;
+    render();
+  }
+}
+
+function nextFlashcard() {
+  if (flashcardState.idx < flashcardState.list.length - 1) {
+    flashcardState.idx++;
+    flashcardState.flipped = false;
+    render();
+  }
+}
+
+function shuffleFlashcards() {
+  flashcardState.list = flashcardState.list.sort(() => Math.random() - 0.5);
+  flashcardState.idx = 0;
+  flashcardState.flipped = false;
+  render();
+}
+
+function sFlashcardView() {
+  const info = KELAS[S.kelas || 1];
+  const list = flashcardState.list || [];
+  const item = list[flashcardState.idx];
+
+  if (!item || list.length === 0) {
+    return `
+    <button class="back" onclick="go('s-materi')">&larr; Kembali ke Materi</button>
+    <div class="card"><p class="empty">Tidak ada kartu hafalan.</p></div>`;
+  }
+
+  const isFlippedClass = flashcardState.flipped ? 'flipped' : '';
+
+  return `
+  <button class="back" onclick="go('s-materi')">&larr; Kembali ke Materi</button>
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+    <div style="display:flex;align-items:center;gap:8px;">
+      <span class="badge ${info.badge}">${info.label}</span>
+      <span class="badge badge-2" style="font-size:12px;">🎴 Flashcard Belajar</span>
+    </div>
+    <span style="font-size:13px;font-weight:700;color:var(--chalk-dim);">Kartu ${flashcardState.idx + 1} dari ${list.length}</span>
+  </div>
+
+  <!-- Perspective 3D Container -->
+  <div class="flashcard-perspective">
+    <div class="flashcard-card ${isFlippedClass}" id="flashcardCard" onclick="flipFlashcard()">
+      
+      <!-- SISI DEPAN (FRONT) -->
+      <div class="flashcard-face flashcard-front">
+        <div class="flashcard-header">
+          <span class="flashcard-cat">${esc(item.kategori || 'Seni Budaya')}</span>
+          <span class="flashcard-hint-badge">👆 Ketuk untuk Balik</span>
+        </div>
+        
+        <div class="flashcard-body">
+          ${item.topik ? `<div class="flashcard-topik">${esc(item.topik)}</div>` : ''}
+          <div class="flashcard-question">${esc(item.depan)}</div>
+          ${item.gambar ? `<img src="${item.gambar}" style="max-height:140px;border-radius:10px;margin-top:10px;object-fit:contain;">` : ''}
+          ${item.audio ? `<audio controls src="${item.audio}" style="width:100%;margin-top:10px;" onclick="event.stopPropagation()"></audio>` : ''}
+        </div>
+      </div>
+
+      <!-- SISI BELAKANG (BACK) -->
+      <div class="flashcard-face flashcard-back">
+        <div class="flashcard-header">
+          <span class="flashcard-cat" style="color:var(--ok);">💡 Penjelasan & Jawaban</span>
+          <span class="flashcard-hint-badge" style="background:rgba(127,201,127,0.2);color:var(--ok);">✓ Ketuk untuk Balik</span>
+        </div>
+
+        <div class="flashcard-body">
+          <div class="flashcard-answer">${esc(item.belakang).replace(/\n/g, '<br>')}</div>
+          ${item.tip ? `<div class="flashcard-tip">${esc(item.tip)}</div>` : ''}
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Navigasi & Acak Kartu Bar -->
+  <div class="flashcard-controls">
+    <button class="btn btn-ghost" onclick="prevFlashcard()" ${flashcardState.idx === 0 ? 'disabled' : ''}>
+      &larr; Kartu Sebelumnya
+    </button>
+    <button class="btn btn-ghost btn-sm" onclick="shuffleFlashcards()" style="color:var(--k2);border-color:var(--k2);">
+      🔀 Acak Urutan
+    </button>
+    <button class="btn btn-1" onclick="nextFlashcard()" ${flashcardState.idx === list.length - 1 ? 'disabled' : ''}>
+      Kartu Berikutnya &rarr;
+    </button>
+  </div>`;
+}
+
 
 /* STUDENT: Kuis */
 async function startQuiz() {
