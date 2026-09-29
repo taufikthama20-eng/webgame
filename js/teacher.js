@@ -15,7 +15,7 @@ function tLoginView() {
 
 function teacherLogin() {
   const v = document.getElementById('inpPass').value;
-  if (v !== '' && v !== 'bundafera') {
+  if (v !== '' && v !== 'ibufera') {
     alert('Kode salah.');
     return;
   }

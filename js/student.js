@@ -101,6 +101,79 @@ async function startQuiz() {
   }
 }
 
+/* Helper untuk mendapatkan URL Audio dari Soal (baik direct base64, audioId, maupun audioLibId) */
+function getQuestionAudioSrc(item) {
+  if (!item) return null;
+  if (item.audioData) return item.audioData;
+  if (item.audio_data) return item.audio_data;
+  const libId = item.audioLibId || item.audio_lib_id;
+  if (libId) {
+    const libItem = (cache.audioLib || []).find(a => String(a.id) === String(libId));
+    if (libItem && libItem.audio_data) return libItem.audio_data;
+  }
+  if (item.audioId) return `/_blob/${item.audioId}`;
+  return null;
+}
+
+function toggleSfxUI(btnEl) {
+  if (typeof toggleSfxMute === 'function') {
+    const isMuted = toggleSfxMute();
+    if (btnEl) btnEl.textContent = isMuted ? '🔇 SFX Off' : '🔊 SFX On';
+  }
+}
+
+/* STUDENT: Kuis */
+async function startQuiz() {
+  const info = KELAS[S.kelas];
+  document.getElementById('app').innerHTML = `<p class="empty">Memuat soal...</p>`;
+  try {
+    // Pre-load audio library ke cache agar audio terhubung dengan audioLibId bisa diputar
+    if (!cache.audioLib || cache.audioLib.length === 0) {
+      if (typeof sbFetchAudioLibrary === 'function') {
+        const lib = await sbFetchAudioLibrary();
+        if (lib) cache.audioLib = lib;
+        else if (typeof getLocalAudioLib === 'function') cache.audioLib = getLocalAudioLib();
+      } else if (typeof getLocalAudioLib === 'function') {
+        cache.audioLib = getLocalAudioLib();
+      }
+    }
+
+    let fetchedFromSupabase = false;
+    if (typeof supabaseClient !== 'undefined' && supabaseClient) {
+      const sbQ = await sbFetchQuestions(S.kelas);
+      if (sbQ !== null) {
+        list = sbQ;
+        fetchedFromSupabase = true;
+      }
+    }
+    if (!fetchedFromSupabase) {
+      if (db) {
+        try {
+          const snap = await db.collection('questions').where('kelas', '==', S.kelas).get();
+          list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        } catch (err) {
+          console.warn("DB fetch failed, using local fallback", err);
+        }
+      }
+      if (!list || list.length === 0) {
+        const localQ = getLocalQuestions();
+        list = localQ.filter(q => Number(q.kelas) === Number(S.kelas));
+      }
+    }
+    list = list.sort(() => Math.random() - 0.5).slice(0, 10);
+    if (list.length === 0) {
+      document.getElementById('app').innerHTML = `<p class="empty">Belum ada soal untuk kelas ini. Minta gurumu menambahkan soal dulu.</p><button class="btn btn-ghost" onclick="go('s-materi')">Kembali</button>`;
+      return;
+    }
+    if (quizTimerInterval) clearInterval(quizTimerInterval);
+    quiz = { list, idx: 0, score: 0, answered: false, userAnswers: [] };
+    go('s-quiz');
+  } catch (e) {
+    console.error("Quiz load error:", e);
+    document.getElementById('app').innerHTML = `<p class="empty">Gagal memuat soal. Coba lagi.</p><button class="btn btn-ghost" onclick="go('s-materi')">Kembali</button>`;
+  }
+}
+
 function sQuizView() {
   const info = KELAS[S.kelas];
   const item = quiz.list[quiz.idx];
@@ -111,9 +184,9 @@ function sQuizView() {
 
   let media = '';
   const gSrc = item.gambarData || (item.gambarId ? `/_blob/${item.gambarId}` : null);
-  const aSrc = item.audioData || (item.audioId ? `/_blob/${item.audioId}` : null);
+  const aSrc = getQuestionAudioSrc(item);
   if (gSrc) media += `<img class="q-media" src="${gSrc}">`;
-  if (aSrc) media += `<audio class="q-media" controls src="${aSrc}" style="width:100%;"></audio>`;
+  if (aSrc) media += `<audio class="q-media" controls src="${aSrc}" style="width:100%;margin-top:10px;"></audio>`;
 
   let timerHtml = '';
   if (maxSec > 0) {
@@ -133,6 +206,7 @@ function sQuizView() {
         if (valEl) valEl.textContent = quizTimerSec;
         if (quizTimerSec <= 5 && badgeEl) {
           badgeEl.classList.add('urgent');
+          if (typeof playSfxTick === 'function') playSfxTick();
         }
         if (quizTimerSec <= 0) {
           clearInterval(quizTimerInterval);
@@ -142,9 +216,14 @@ function sQuizView() {
     }, 50);
   }
 
+  const sfxLabel = (typeof isSfxMuted === 'function' && isSfxMuted()) ? '🔇 SFX Off' : '🔊 SFX On';
+
   return `
   <div style="display:flex;justify-content:space-between;align-items:center;">
-    <span class="badge ${info.badge}">${info.label}</span>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <span class="badge ${info.badge}">${info.label}</span>
+      <button class="btn btn-ghost btn-sm" onclick="toggleSfxUI(this)" style="padding:2px 8px;font-size:12px;">${sfxLabel}</button>
+    </div>
     ${timerHtml}
   </div>
   <div class="progress" style="margin-top:10px;"><i style="width:${pct}%;background:var(${info.accent});"></i></div>
@@ -170,6 +249,7 @@ function answerQuiz(i) {
   });
 
   if (i === -1) {
+    if (typeof playSfxWrong === 'function') playSfxWrong();
     const wrap = document.getElementById('optsWrap');
     if (wrap) {
       const timeoutMsg = document.createElement('p');
@@ -180,6 +260,10 @@ function answerQuiz(i) {
       timeoutMsg.textContent = '⏰ Waktu menjawab habis!';
       wrap.prepend(timeoutMsg);
     }
+  } else if (i === item.jawaban) {
+    if (typeof playSfxCorrect === 'function') playSfxCorrect();
+  } else {
+    if (typeof playSfxWrong === 'function') playSfxWrong();
   }
 
   opts[item.jawaban].classList.add('correct');
@@ -204,6 +288,8 @@ async function finishQuiz() {
   if (quizTimerInterval) clearInterval(quizTimerInterval);
   currentView = 's-result';
   render();
+  if (typeof triggerConfetti === 'function') triggerConfetti();
+  if (typeof playSfxFanfare === 'function') playSfxFanfare();
   const resultObj = {
     nama: S.name,
     kelas: S.kelas,
@@ -229,15 +315,80 @@ async function finishQuiz() {
 function sResultView() {
   const info = KELAS[S.kelas];
   const pct = Math.round(quiz.score / quiz.list.length * 100);
-  const msg = pct >= 80 ? 'Keren banget! 🎉' : pct >= 60 ? 'Bagus, terus berlatih!' : 'Yuk pelajari lagi materinya!';
+
+  let starCount = 1;
+  let msg = 'Yuk pelajari lagi materinya!';
+  let mascotLeft = 'Semangat!';
+  let mascotRight = 'Ayo Coba Lagi! 💪';
+  let badgeStyle = 'background: rgba(224, 101, 101, 0.2); color: var(--bad);';
+
+  if (pct >= 80) {
+    starCount = 3;
+    msg = 'Keren Banget! Sempurna! 🎉';
+    mascotLeft = 'Luar Biasa! 🌟';
+    mascotRight = 'Kamu Hebat! 🏆';
+    badgeStyle = 'background: rgba(127, 201, 127, 0.25); color: var(--ok);';
+  } else if (pct >= 60) {
+    starCount = 2;
+    msg = 'Bagus! Terus Tingkatkan! 👍';
+    mascotLeft = 'Kerja Bagus! ✨';
+    mascotRight = 'Makin Pintar! 📚';
+    badgeStyle = 'background: rgba(247, 187, 67, 0.25); color: #f7bb43;';
+  }
+
+  // Trigger Score count up animation after view renders
+  setTimeout(() => {
+    const el = document.getElementById('resultScoreVal');
+    if (!el) return;
+    let current = 0;
+    const target = quiz.score;
+    const total = quiz.list.length;
+    if (target === 0) {
+      el.textContent = `0/${total}`;
+      return;
+    }
+    const stepTime = Math.max(40, Math.floor(800 / target));
+    const timer = setInterval(() => {
+      current++;
+      el.textContent = `${current}/${total}`;
+      if (current >= target) {
+        clearInterval(timer);
+      }
+    }, stepTime);
+  }, 60);
+
   return `
-  <div class="card result-hero">
-    <span class="badge ${info.badge}">${info.label}</span>
-    <div class="score">${quiz.score}/${quiz.list.length}</div>
-    <p class="pct">${pct}% benar · ${msg}</p>
+  <div class="result-celebration-container">
+    <div class="mascot-cheer cheer-left">
+      <img src="assets/boy_student.png" alt="Siswa SMP">
+      <div class="speech-bubble">${mascotLeft}</div>
+    </div>
+
+    <div class="card result-hero result-hero-animated" style="flex:1;">
+      <span class="badge ${info.badge}">${info.label}</span>
+      
+      <div class="result-stars">
+        <span class="star star-1 ${starCount >= 1 ? 'active' : ''}">⭐</span>
+        <span class="star star-2 ${starCount >= 2 ? 'active' : ''}">⭐</span>
+        <span class="star star-3 ${starCount >= 3 ? 'active' : ''}">⭐</span>
+      </div>
+
+      <div class="score" id="resultScoreVal">0/${quiz.list.length}</div>
+      <p class="pct">${pct}% Benar</p>
+      
+      <div class="encouragement-tag" style="${badgeStyle}">
+        ${msg}
+      </div>
+    </div>
+
+    <div class="mascot-cheer cheer-right">
+      <img src="assets/girl_student.png" alt="Siswi SMP">
+      <div class="speech-bubble">${mascotRight}</div>
+    </div>
   </div>
-  <div class="row" style="flex-direction:column;gap:10px;">
-    <button class="btn btn-block" style="background:var(--ok);color:#fff;font-weight:700;" onclick="go('s-pembahasan')">💡 Lihat Pembahasan & Kunci Jawaban</button>
+
+  <div class="row" style="flex-direction:column;gap:10px;margin-top:14px;">
+    <button class="btn btn-block" style="background:var(--ok);color:#1c1c1c;font-weight:800;font-size:15px;padding:14px;" onclick="go('s-pembahasan')">💡 Lihat Pembahasan & Kunci Jawaban</button>
     <div class="row" style="gap:10px;">
       <button class="btn" style="background:var(${info.accent});color:#1c1c1c;flex:1;" onclick="startQuiz()">Ulangi Kuis</button>
       <button class="btn btn-ghost" style="flex:1;" onclick="go('s-materi')">Kembali ke Materi</button>
@@ -261,7 +412,7 @@ function sPembahasanView() {
     const q = ans.question;
     const isCorrect = ans.isCorrect;
     const gSrc = q.gambarData || (q.gambarId ? `/_blob/${q.gambarId}` : null);
-    const aSrc = q.audioData || (q.audioId ? `/_blob/${q.audioId}` : null);
+    const aSrc = getQuestionAudioSrc(q);
 
     return `
       <div class="card" style="border-left: 6px solid ${isCorrect ? 'var(--ok)' : 'var(--bad)'}; position: relative;">
