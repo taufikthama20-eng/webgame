@@ -622,11 +622,11 @@ async function finishQuiz() {
     waktu: Date.now()
   };
   try {
+    let saved = null;
     if (typeof supabaseClient !== 'undefined' && supabaseClient) {
-      await sbSaveResult(resultObj);
-    } else if (db) {
-      await db.collection('results').add(resultObj);
-    } else {
+      saved = await sbSaveResult(resultObj);
+    }
+    if (!saved) {
       saveLocalResult(resultObj);
     }
     window.dispatchEvent(new CustomEvent('sanggar_result_updated', { detail: resultObj }));
