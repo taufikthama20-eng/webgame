@@ -32,6 +32,8 @@ async function initCaps() {
             console.warn("Claude capabilities interface error/unavailable:", e);
         }
     }
+    await syncQuizPinsSupabase();
+    initQuizPinsRealtime();
     render();
 }
 
@@ -156,6 +158,9 @@ function deleteLocalAudio(id) {
 
 /* ---------------- Quiz Access PIN Storage ---------------- */
 function getQuizPinConfig(kelas) {
+    if (cache.quizPins && cache.quizPins[kelas]) {
+        return cache.quizPins[kelas];
+    }
     try {
         const stored = localStorage.getItem('sb_quiz_pins');
         if (stored) {
@@ -166,14 +171,47 @@ function getQuizPinConfig(kelas) {
     return { pin: '', active: false };
 }
 
-function saveQuizPinConfig(kelas, pin, active) {
+function saveQuizPinConfig(kelas, pin, active, syncOnline = true) {
+    const config = { pin: String(pin || '').trim(), active: !!active };
+    if (!cache.quizPins) cache.quizPins = {};
+    cache.quizPins[kelas] = config;
+
     try {
         const stored = localStorage.getItem('sb_quiz_pins');
         const map = stored ? JSON.parse(stored) : {};
-        map[kelas] = { pin: (pin || '').trim(), active: !!active };
+        map[kelas] = config;
         localStorage.setItem('sb_quiz_pins', JSON.stringify(map));
     } catch (e) {
         console.warn("Failed to save quiz pin config:", e);
+    }
+
+    if (syncOnline && typeof supabaseClient !== 'undefined' && supabaseClient && typeof sbSaveQuizPin === 'function') {
+        sbSaveQuizPin(kelas, pin, active);
+    }
+}
+
+async function syncQuizPinsSupabase(kelas = null) {
+    if (typeof supabaseClient !== 'undefined' && supabaseClient && typeof sbFetchQuizPin === 'function') {
+        const classes = kelas ? [kelas] : [1, 2, 3];
+        for (const k of classes) {
+            const res = await sbFetchQuizPin(k);
+            if (res) {
+                saveQuizPinConfig(k, res.pin, res.active, false);
+            }
+        }
+    }
+}
+
+// Inisialisasi Realtime Subscriptions PIN Supabase jika tersedia
+let sbPinsSub = null;
+function initQuizPinsRealtime() {
+    if (typeof supabaseClient !== 'undefined' && supabaseClient && !sbPinsSub && typeof sbSubscribeQuizPins === 'function') {
+        sbPinsSub = sbSubscribeQuizPins(payload => {
+            if (payload && payload.kelas) {
+                saveQuizPinConfig(payload.kelas, payload.pin, payload.active, false);
+                if (typeof render === 'function') render();
+            }
+        });
     }
 }
 

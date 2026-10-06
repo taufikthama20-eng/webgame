@@ -311,3 +311,77 @@ async function sbDeleteAudio(id) {
         return false;
     }
 }
+
+/* ---------------- Quiz PINs Supabase API ---------------- */
+
+/**
+ * Mengambil konfigurasi PIN kuis dari Supabase
+ */
+async function sbFetchQuizPin(kelas) {
+    if (!supabaseClient) return null;
+    try {
+        const { data, error } = await supabaseClient
+            .from('quiz_pins')
+            .select('*')
+            .eq('kelas', kelas)
+            .maybeSingle();
+
+        if (error) {
+            console.warn("Supabase Warning [sbFetchQuizPin]:", error.message);
+            return null;
+        }
+        return data ? { pin: data.pin || '', active: !!data.active } : null;
+    } catch (e) {
+        console.warn("Network / Supabase Exception [sbFetchQuizPin]:", e);
+        return null;
+    }
+}
+
+/**
+ * Menyimpan konfigurasi PIN kuis ke Supabase
+ */
+async function sbSaveQuizPin(kelas, pin, active) {
+    if (!supabaseClient) return null;
+    try {
+        const payload = {
+            kelas: Number(kelas),
+            pin: String(pin || '').trim(),
+            active: !!active
+        };
+        const { data, error } = await supabaseClient
+            .from('quiz_pins')
+            .upsert(payload)
+            .select();
+
+        if (error) {
+            console.warn("Supabase Warning [sbSaveQuizPin]:", error.message);
+            return null;
+        }
+        return data ? data[0] : null;
+    } catch (e) {
+        console.warn("Network / Supabase Exception [sbSaveQuizPin]:", e);
+        return null;
+    }
+}
+
+/**
+ * Berlangganan perubahkan real-time PIN Kuis Supabase
+ */
+function sbSubscribeQuizPins(onPinUpdateCallback) {
+    if (!supabaseClient) return null;
+    try {
+        const channel = supabaseClient
+            .channel('public-quiz-pins-changes')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'quiz_pins' }, payload => {
+                console.log("⚡ Realtime Supabase Quiz PIN Updated:", payload);
+                if (onPinUpdateCallback && payload.new) {
+                    onPinUpdateCallback(payload.new);
+                }
+            })
+            .subscribe();
+        return channel;
+    } catch (e) {
+        console.warn("Realtime subscription exception [quiz_pins]:", e);
+        return null;
+    }
+}
