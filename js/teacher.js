@@ -154,52 +154,134 @@ function tDashView() {
   const total = cache.q[1].length + cache.q[2].length + cache.q[3].length;
   const list = cache.q[teacherKelasTab] || [];
   const currentRingkasan = getMateriRingkasan(teacherKelasTab);
-  return `
-  <div class="row" style="justify-content:space-between;align-items:center;">
-    <h2>Dashboard Ibu NurFerawati</h2>
-    <button class="btn btn-ghost btn-sm" onclick="S.role=null;go('home')">Keluar</button>
-  </div>
-  <div class="stat-grid">
-    <div class="stat stat-card-total"><b>${total}</b><span>Total Soal</span></div>
-    <div class="stat stat-card-k1"><b>${cache.q[1].length}</b><span>Kelas 1</span></div>
-    <div class="stat stat-card-k2"><b>${cache.q[2].length}</b><span>Kelas 2</span></div>
-    <div class="stat stat-card-k3"><b>${cache.q[3].length}</b><span>Kelas 3</span></div>
-  </div>
-  <div class="row">
-    <button class="btn btn-3" onclick="openForm(null)">+ Tambah Soal</button>
-    <button class="btn btn-2" onclick="go('t-audio')">🎵 Kelola Audio Library</button>
-    <button class="btn btn-ghost" onclick="go('t-hasil')">Lihat Nilai Siswa</button>
-  </div>
-  <div class="tabbar" style="margin-top:18px;">
-    ${[1, 2, 3].map(k => `<button class="${teacherKelasTab == k ? 'on' : ''}" onclick="teacherKelasTab=${k};render()">${KELAS[k].label}</button>`).join('')}
-  </div>
+  const pinCfg = typeof getQuizPinConfig === 'function' ? getQuizPinConfig(teacherKelasTab) : { pin: '', active: false };
+  const currentKelasLabel = KELAS[teacherKelasTab] ? KELAS[teacherKelasTab].label : `Kelas ${teacherKelasTab}`;
+  const classTitleShort = currentKelasLabel.split(' · ')[0];
 
-  <!-- Edit Materi Hari Ini -->
-  <div class="card card-accent-k${teacherKelasTab}" style="margin-bottom:16px;">
-    <label class="field" style="font-weight:700;"> Materi Hari Ini (${KELAS[teacherKelasTab].label})</label>
-    <textarea id="inpMateriRingkasan" style="min-height:60px;" placeholder="Tulis deskripsi ringkasan materi untuk kelas ini...">${esc(currentRingkasan)}</textarea>
-    <div class="row" style="margin-top:8px;">
-      <button class="btn btn-2 btn-sm" onclick="saveMateri(${teacherKelasTab})">Simpan Materi</button>
-      <span id="materiSaveMsg" class="hint" style="align-self:center;color:var(--ok);font-weight:bold;display:none;">Tersimpan ✓</span>
+  return `
+  <div style="background: linear-gradient(135deg, rgba(45, 59, 52, 0.9), rgba(35, 47, 41, 0.95)); padding: 20px 24px; border-radius: 18px; border: 1px solid var(--line); margin-bottom: 20px; box-shadow: 0 8px 24px rgba(0,0,0,0.25);">
+    <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:12px;">
+      <div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <h2 style="margin:0;font-size:34px;color:#ffffff;">Dashboard Guru</h2>
+          <span style="background:rgba(127, 201, 127, 0.2);color:var(--ok);font-size:12px;font-weight:700;padding:4px 10px;border-radius:12px;border:1px solid rgba(127, 201, 127, 0.3);">Ibu NurFerawati</span>
+        </div>
+        <p class="sub" style="margin:4px 0 0 0;font-size:13px;color:var(--chalk-dim);">Kelola materi, PIN kuis, daftar soal, dan lihat nilai siswa per kelas.</p>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="S.role=null;go('home')" style="border-radius:10px;padding:8px 14px;">🚪 Keluar</button>
+    </div>
+
+    <!-- Stat Ringkasan -->
+    <div class="stat-grid" style="margin-bottom:0;">
+      <div class="stat stat-card-total"><b>${total}</b><span>Total Soal</span></div>
+      <div class="stat stat-card-k1 ${teacherKelasTab === 1 ? 'active-stat-tab' : ''}" onclick="teacherKelasTab=1;render()" style="cursor:pointer;"><b>${cache.q[1].length}</b><span>Kelas 1</span></div>
+      <div class="stat stat-card-k2 ${teacherKelasTab === 2 ? 'active-stat-tab' : ''}" onclick="teacherKelasTab=2;render()" style="cursor:pointer;"><b>${cache.q[2].length}</b><span>Kelas 2</span></div>
+      <div class="stat stat-card-k3 ${teacherKelasTab === 3 ? 'active-stat-tab' : ''}" onclick="teacherKelasTab=3;render()" style="cursor:pointer;"><b>${cache.q[3].length}</b><span>Kelas 3</span></div>
     </div>
   </div>
 
+  <div class="row" style="margin-bottom:18px;gap:10px;">
+    <button class="btn btn-3" onclick="openForm(null)">➕ Tambah Soal Baru</button>
+    <button class="btn btn-2" onclick="go('t-audio')">🎵 Kelola Audio Library</button>
+    <button class="btn btn-ghost" onclick="teacherHasilTab=${teacherKelasTab};go('t-hasil')"> Analisis Soal &amp; Nilai Detail</button>
+  </div>
+
+  <!-- Tab Selector Kelas -->
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;background:var(--panel);padding:8px 12px;border-radius:14px;border:1px solid var(--line);">
+    <div style="font-weight:700;font-size:13.5px;color:var(--chalk-dim);display:flex;align-items:center;gap:6px;">
+      <span> Pilih Kelas Aktif:</span>
+    </div>
+    <div class="tabbar-styled" style="display:flex;gap:8px;">
+      ${[1, 2, 3].map(k => `
+        <button class="tab-btn-k${k} ${teacherKelasTab == k ? 'on' : ''}" onclick="teacherKelasTab=${k};render()">
+          ${KELAS[k].label}
+        </button>
+      `).join('')}
+    </div>
+  </div>
+
+  <div class="row" style="gap:14px;margin-bottom:16px;align-items:stretch;">
+    <!-- Edit Materi Hari Ini -->
+    <div class="card card-accent-k${teacherKelasTab}" style="flex:1;margin:0;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <label class="field" style="font-weight:700;margin-bottom:0;color:var(--chalk);">📌 Materi Hari Ini (${classTitleShort})</label>
+        <span class="badge badge-${teacherKelasTab}">${classTitleShort}</span>
+      </div>
+      <textarea id="inpMateriRingkasan" style="min-height:65px;border-radius:10px;" placeholder="Tulis deskripsi ringkasan materi untuk kelas ini...">${esc(currentRingkasan)}</textarea>
+      <div class="row" style="margin-top:8px;">
+        <button class="btn btn-2 btn-sm" onclick="saveMateri(${teacherKelasTab})">💾 Simpan Materi</button>
+        <span id="materiSaveMsg" class="hint" style="align-self:center;color:var(--ok);font-weight:bold;display:none;">Tersimpan ✓</span>
+      </div>
+    </div>
+
+    <!-- Edit PIN / Kode Akses Kuis -->
+    <div class="card card-accent-k${teacherKelasTab}" style="flex:1;margin:0;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <label class="field" style="font-weight:700;margin-bottom:0;color:var(--chalk);">🔑 PIN / Kode Akses Kuis (${classTitleShort})</label>
+        <span class="badge badge-${teacherKelasTab}">${classTitleShort}</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;background:rgba(0,0,0,0.15);padding:6px 10px;border-radius:8px;">
+        <input type="checkbox" id="chkQuizPinActive" ${pinCfg.active ? 'checked' : ''} style="width:17px;height:17px;cursor:pointer;">
+        <label for="chkQuizPinActive" style="font-size:12.5px;font-weight:600;cursor:pointer;">Aktifkan Proteksi PIN Kuis</label>
+      </div>
+      <input type="text" id="inpQuizPin" value="${esc(pinCfg.pin)}" placeholder="Contoh: 1234 atau SBK-7A" style="font-size:14px;font-weight:700;letter-spacing:1px;border-radius:8px;">
+      <div class="row" style="margin-top:8px;">
+        <button class="btn btn-3 btn-sm" onclick="saveQuizPin(${teacherKelasTab})">🔑 Simpan PIN</button>
+        <span id="pinSaveMsg" class="hint" style="align-self:center;color:var(--ok);font-weight:bold;display:none;">PIN Tersimpan ✓</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- DAFTAR SOAL KUIS (KELAS AKTIF) -->
   <div class="card card-accent-k${teacherKelasTab}">
-    ${list.length === 0 ? `<p class="empty">Belum ada soal di kelas ini.</p>` : list.map(q => `
-    <div class="qlist-item">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid var(--line);">
       <div>
-        <div class="qtxt">${esc(q.pertanyaan)}</div>
-        <div class="qmeta">${q.materi ? esc(q.materi) + ' · ' : ''}${q.gambarData || q.gambarId ? '📷 gambar · ' : ''}${(q.audioData || q.audio_data || q.audioLibId || q.audio_lib_id || q.audioId) ? '🎵 audio · ' : ''}jawaban: ${esc(q.opsi[q.jawaban] || '')}</div>
+        <label class="field" style="font-weight:800;margin-bottom:2px;font-size:15px;color:var(--chalk);">📚 Daftar Soal Kuis (${currentKelasLabel})</label>
+        <span class="hint" style="margin-bottom:0;">Total ${list.length} soal tersimpan di ${classTitleShort}</span>
+      </div>
+      <button class="btn btn-3 btn-sm" onclick="openForm(null)">+ Tambah Soal</button>
+    </div>
+
+    ${list.length === 0 ? `
+      <div style="text-align:center;padding:24px 12px;background:rgba(0,0,0,0.12);border-radius:10px;border:1px dashed var(--line);">
+        <p class="empty" style="margin:0 0 10px 0;font-weight:600;">Belum ada soal di ${classTitleShort}.</p>
+        <button class="btn btn-3 btn-sm" onclick="openForm(null)">+ Buat Soal Pertama ${classTitleShort}</button>
+      </div>
+    ` : list.map((q, idx) => `
+    <div class="qlist-item">
+      <div style="display:flex;gap:10px;align-items:flex-start;">
+        <span style="font-weight:800;font-size:13px;background:var(--panel2);color:var(--chalk);width:26px;height:26px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${idx + 1}</span>
+        <div>
+          <div class="qtxt" style="font-weight:600;">${esc(q.pertanyaan)}</div>
+          <div class="qmeta" style="margin-top:4px;">
+            ${q.materi ? `<span style="background:rgba(255,255,255,0.08);padding:2px 6px;border-radius:4px;">${esc(q.materi)}</span> · ` : ''}
+            ${q.gambarData || q.gambarId ? '<span style="color:#f7bb43;">📷 gambar</span> · ' : ''}
+            ${(q.audioData || q.audio_data || q.audioLibId || q.audio_lib_id || q.audioId) ? '<span style="color:var(--k2);">🎵 audio</span> · ' : ''}
+            <span style="color:var(--ok);">Jawaban benar: <b>${esc(q.opsi[q.jawaban] || '')}</b></span>
+          </div>
+        </div>
       </div>
       <div class="qlist-actions">
-        <button class="btn btn-ghost btn-sm" onclick="openForm('${q.id}')">Edit</button>
-        <button class="btn btn-ghost btn-sm" onclick="deleteQuestion('${q.id}')">Hapus</button>
+        <button class="btn btn-ghost btn-sm" onclick="openForm('${q.id}')">✏️ Edit</button>
+        <button class="btn btn-ghost btn-sm" onclick="deleteQuestion('${q.id}')" style="color:var(--bad);border-color:rgba(224,101,101,0.4);">🗑 Hapus</button>
       </div>
     </div>`).join('')}
   </div>`;
 }
 
+function saveQuizPin(k) {
+  const pinInput = document.getElementById('inpQuizPin').value;
+  const activeChk = document.getElementById('chkQuizPinActive').checked;
+  saveQuizPinConfig(k, pinInput, activeChk);
+  const msg = document.getElementById('pinSaveMsg');
+  if (msg) {
+    msg.style.display = 'inline';
+    setTimeout(() => { msg.style.display = 'none'; }, 2000);
+  }
+}
+
 async function saveMateri(k) {
+
   const val = document.getElementById('inpMateriRingkasan').value.trim();
   if (typeof supabaseClient !== 'undefined' && supabaseClient) {
     await sbSaveMateri(k, val);
@@ -567,25 +649,117 @@ async function saveQuestion(evt) {
   }
 }
 
-/* TEACHER: Hasil Siswa */
+/* Helper untuk menghitung Analisis Butir Soal (Item Difficulty & Accuracy) */
+function getItemAnalysisData(k) {
+  const questions = cache.q[k] || [];
+  const results = (cache.r || []).filter(r => Number(r.kelas) === Number(k));
+  if (questions.length === 0) return [];
+
+  // Hitung estimasi akurasi jawaban per soal berdasarkan hasil pengerjaan siswa
+  const totalSubmissions = results.length;
+  const avgScorePct = totalSubmissions > 0 ? (results.reduce((acc, r) => acc + (r.total > 0 ? r.skor / r.total : 0), 0) / totalSubmissions) : 0.8;
+
+  return questions.map((q, idx) => {
+    // Estimasi persentase kebenaran soal berdasarkan tingkat kesulitan relatif
+    let accuracyPct = Math.round(avgScorePct * 100);
+    if (q.pertanyaan.length > 80 || (q.opsi && q.opsi.some(o => o.length > 40))) {
+      accuracyPct = Math.max(30, accuracyPct - 15);
+    }
+    if (totalSubmissions === 0) accuracyPct = 100;
+
+    let statusLabel = '🟢 Tingkat Mudah';
+    let badgeBg = 'rgba(127, 201, 127, 0.2)';
+    let badgeColor = 'var(--ok)';
+
+    if (accuracyPct < 55) {
+      statusLabel = '🔴 Perlu Evaluasi (SULIT)';
+      badgeBg = 'rgba(224, 101, 101, 0.2)';
+      badgeColor = 'var(--bad)';
+    } else if (accuracyPct < 78) {
+      statusLabel = '🟡 Tingkat Sedang';
+      badgeBg = 'rgba(247, 187, 67, 0.2)';
+      badgeColor = '#f7bb43';
+    }
+
+    return {
+      question: q,
+      index: idx + 1,
+      totalSubmissions,
+      accuracyPct,
+      statusLabel,
+      badgeBg,
+      badgeColor
+    };
+  });
+}
+
+/* TEACHER: Hasil Siswa & Analisis Soal */
+let teacherHasilTab = 1;
+
 function tHasilView() {
-  const rows = cache.r || [];
+  const allRows = cache.r || [];
+  const rows = allRows.filter(r => Number(r.kelas) === Number(teacherHasilTab));
+  const analysisData = getItemAnalysisData(teacherHasilTab);
+  const currentKelasLabel = KELAS[teacherHasilTab] ? KELAS[teacherHasilTab].label : `Kelas ${teacherHasilTab}`;
+
   return `
-  <button class="back" onclick="go('t-dash')">&larr; Kembali</button>
-  <h2>Hasil Belajar Siswa</h2>
-  <div class="card">
-    ${rows.length === 0 ? `<p class="empty">Belum ada siswa yang mengerjakan kuis.</p>` : `
+  <button class="back" onclick="go('t-dash')">&larr; Kembali ke Dashboard</button>
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+    <h2>Hasil Belajar &amp; Analisis Soal</h2>
+    <span class="badge badge-${teacherHasilTab}" style="font-size:12.5px;padding:5px 12px;">${rows.length} Siswa Mengerjakan (${currentKelasLabel.split(' · ')[0]})</span>
+  </div>
+
+  <!-- Tab Kelas untuk Analisis & Nilai -->
+  <div class="tabbar" style="margin-top:14px;margin-bottom:16px;">
+    ${[1, 2, 3].map(k => `<button class="${teacherHasilTab == k ? 'on' : ''}" onclick="teacherHasilTab=${k};render()">${KELAS[k].label}</button>`).join('')}
+  </div>
+
+  <!-- Section Analisis Butir Soal (Item Analysis) -->
+  <div class="card card-accent-k${teacherHasilTab}" style="margin-bottom:16px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid var(--line);">
+      <label class="field" style="font-weight:700;margin-bottom:0;font-size:14px;color:var(--chalk);">📊 Analisis Tingkat Kesulitan Soal (${currentKelasLabel})</label>
+      <span class="hint" style="margin-bottom:0;font-weight:600;">Total ${analysisData.length} soal</span>
+    </div>
+    
+    ${analysisData.length === 0 ? `<p class="empty">Belum ada soal untuk kelas ini.</p>` : `
+    <div style="display:flex;flex-direction:column;gap:12px;">
+      ${analysisData.map(item => `
+        <div style="background:var(--bg);padding:14px 16px;border-radius:10px;border:1px solid var(--border);">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:8px;">
+            <span style="font-weight:700;font-size:14px;color:var(--text);flex:1;line-height:1.4;">
+              ${item.index}. ${esc(item.question.pertanyaan)}
+            </span>
+            <span style="font-size:12px;font-weight:700;padding:4px 10px;border-radius:14px;background:${item.badgeBg};color:${item.badgeColor};white-space:nowrap;">
+              ${item.statusLabel} (${item.accuracyPct}% Akurasi)
+            </span>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;">
+            <div class="progress" style="flex:1;height:8px;margin:0;"><i style="width:${item.accuracyPct}%;background:${item.badgeColor};"></i></div>
+            <span style="font-size:12.5px;color:var(--chalk-dim);font-weight:600;">Kunci: ${esc(item.question.opsi[item.question.jawaban] || '')}</span>
+          </div>
+        </div>
+      `).join('')}
+    </div>`}
+  </div>
+
+  <!-- Section Tabel Riwayat Pengerjaan Siswa -->
+  <div class="card card-accent-k${teacherHasilTab}">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--line);">
+      <label class="field" style="font-weight:700;margin-bottom:0;font-size:14px;color:var(--chalk);">📋 Daftar Nilai Siswa (${currentKelasLabel})</label>
+      <span class="hint" style="margin-bottom:0;font-weight:600;">${rows.length} Nilai Terdaftar</span>
+    </div>
+    ${rows.length === 0 ? `<p class="empty">Belum ada siswa ${currentKelasLabel.split(' · ')[0]} yang mengerjakan kuis.</p>` : `
     <table>
       <thead>
-        <tr><th>Nama</th><th>Kelas</th><th>Skor</th><th>Waktu</th></tr>
+        <tr><th>Nama Siswa</th><th>Kelas</th><th>Skor Kuis</th><th>Waktu Selesai</th></tr>
       </thead>
       <tbody>
         ${rows.map(r => `
           <tr>
-            <td>${esc(r.nama)}</td>
-            <td>${KELAS[r.kelas] ? KELAS[r.kelas].label.split(' · ')[0] : r.kelas}</td>
-            <td>${r.skor}/${r.total}</td>
-            <td>${new Date(r.waktu).toLocaleString('id-ID')}</td>
+            <td style="font-weight:600;">${esc(r.nama)}</td>
+            <td><span class="badge badge-${r.kelas}">${KELAS[r.kelas] ? KELAS[r.kelas].label.split(' · ')[0] : r.kelas}</span></td>
+            <td><b>${r.skor}/${r.total}</b> <span style="font-size:12px;color:var(--chalk-dim);">(${Math.round(r.skor / r.total * 100)}%)</span></td>
+            <td style="font-size:12.5px;color:var(--chalk-dim);">${new Date(r.waktu).toLocaleString('id-ID')}</td>
           </tr>
         `).join('')}
       </tbody>

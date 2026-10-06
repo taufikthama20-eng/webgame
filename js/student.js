@@ -1,47 +1,120 @@
-/* ---------------- Student Views & Logic ---------------- */
+let selectedStudentClass = 1;
 
-/* STUDENT: Nama */
+/* STUDENT: Login & Masuk Kelas (Human-Crafted Visual UI) */
 function sNameView() {
+  selectedStudentClass = S.kelas || 1;
+  return renderStudentLoginCard();
+}
+
+function renderStudentLoginCard() {
+  const k = selectedStudentClass;
+
   return `
   <button class="back" onclick="go('home')">&larr; Kembali</button>
-  <h2>Siapa namamu?</h2>
-  <p class="sub">Nama ini dipakai untuk menyimpan hasil kuismu.</p>
-  <div class="card">
-    <label class="field">Nama lengkap</label>
-    <input type="text" id="inpName" placeholder="Contoh: Siti Amara" value="${S.name || ''}">
-    <button class="btn btn-1 btn-block" onclick="submitName()">Lanjut</button>
+  <h2>Masuk Siswa 🎓</h2>
+  <p class="sub">Isi nama lengkapmu dan pilih kelas untuk mulai belajar.</p>
+
+  <div class="card student-card-spring" style="max-width:520px;margin:0 auto;box-shadow: 0 12px 32px rgba(0,0,0,0.3);border: 1px solid var(--line);">
+    
+    <!-- 1. Input Nama -->
+    <label class="field" style="font-weight:700;font-size:13.5px;color:var(--chalk);">1. Nama Lengkap Siswa</label>
+    <input type="text" id="inpName" placeholder="Contoh: Siti Amara" value="${esc(S.name || '')}" style="font-size:15px;padding:12px;border-radius:10px;margin-bottom:18px;" onkeyup="if(event.key==='Enter')submitStudentLogin()">
+
+    <!-- 2. Selector Kelas Visual (Visual Cards) -->
+    <label class="field" style="font-weight:700;font-size:13.5px;color:var(--chalk);">2. Pilih Kelasmu</label>
+    <div class="class-select-grid" id="studentClassGrid">
+      ${[1, 2, 3].map(kls => {
+    const isActive = k == kls;
+    const activeClass = isActive ? `active-k${kls}` : '';
+    return `
+          <div class="class-select-card ${activeClass}" id="classCard_${kls}" onclick="selectStudentClass(${kls})">
+            <span class="badge ${KELAS[kls].badge}" style="font-size:10px;">SMP</span>
+            <b>${KELAS[kls].label}</b>
+          </div>
+        `;
+  }).join('')}
+    </div>
+
+    <!-- 3. Section Input PIN Kuis (Muncul jika kelas dilindungi PIN) -->
+    <div id="pinSectionContainer">
+      ${renderPinSectionHTML(k)}
+    </div>
+
+    <button class="btn btn-1 btn-block" style="margin-top:10px;padding:13px;font-weight:800;font-size:15px;border-radius:11px;box-shadow: 0 4px 14px rgba(232, 135, 74, 0.3);" onclick="submitStudentLogin()">
+      Masuk &amp; Mulai Kuis &rarr;
+    </button>
+
+    <button class="btn btn-block" style="margin-top:10px;background:rgba(255,255,255,0.08);color:var(--chalk);border:1px solid rgba(255,255,255,0.15);padding:11px;font-weight:700;font-size:14px;border-radius:11px;" onclick="go('s-leaderboard')">
+      🏆 Lihat Papan Peringkat Siswa
+    </button>
+
   </div>`;
 }
 
-function submitName() {
-  const v = document.getElementById('inpName').value.trim();
-  if (!v) {
-    alert('Isi nama dulu ya.');
+function renderPinSectionHTML(kls) {
+  const pinCfg = typeof getQuizPinConfig === 'function' ? getQuizPinConfig(kls) : { pin: '', active: false };
+  if (!pinCfg.active || !pinCfg.pin) return '';
+
+  return `
+    <div class="pin-reveal-box">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
+        <b style="font-size:13.5px;color:var(--k1);">Kode Akses PIN Kuis (Diperlukan)</b>
+      </div>
+      <p style="font-size:12px;color:var(--chalk-dim);margin:0 0 10px;">Guru mengaktifkan proteksi PIN untuk ${KELAS[kls].label}. Tanyakan PIN pada gurumu.</p>
+      <input type="password" id="inpStudentPin" placeholder="Masukkan Kode PIN Kuis" style="font-size:16px;font-weight:700;letter-spacing:2px;text-align:center;padding:11px;margin:0;" onkeyup="if(event.key==='Enter')submitStudentLogin()">
+    </div>
+  `;
+}
+
+function selectStudentClass(kls) {
+  selectedStudentClass = kls;
+  S.kelas = kls;
+
+  // Update active border styles in-place without re-triggering card spring animation
+  [1, 2, 3].forEach(id => {
+    const cardEl = document.getElementById(`classCard_${id}`);
+    if (cardEl) {
+      cardEl.className = `class-select-card ${id == kls ? 'active-k' + id : ''}`;
+    }
+  });
+
+  // Update PIN Section HTML in-place seamlessly
+  const pinContainer = document.getElementById('pinSectionContainer');
+  if (pinContainer) {
+    pinContainer.innerHTML = renderPinSectionHTML(kls);
+  }
+}
+
+function submitStudentLogin() {
+  const nameEl = document.getElementById('inpName');
+  const nameVal = nameEl ? nameEl.value.trim() : (S.name || '');
+
+  if (!nameVal) {
+    alert('Isi nama lengkapmu dulu ya.');
+    if (nameEl) nameEl.focus();
     return;
   }
-  S.name = v;
-  go('s-kelas');
-}
 
-/* STUDENT: Pilih Kelas */
-function sKelasView() {
-  return `
-  <button class="back" onclick="go('s-name')">&larr; Kembali</button>
-  <h2>Halo, ${esc(S.name)} 👋</h2>
-  <p class="sub">Pilih kelasmu.</p>
-  <div class="klas-grid">
-    ${[1, 2, 3].map(k => `
-      <button class="klas-card" onclick="pickKelas(${k})">
-        <span class="badge ${KELAS[k].badge}">SMP</span>
-        <b>${KELAS[k].label}</b>
-        <span>${esc(getMateriRingkasan(k))}</span>
-      </button>
-    `).join('')}
-  </div>`;
-}
+  S.name = nameVal;
+  S.kelas = selectedStudentClass;
 
-function pickKelas(k) {
-  S.kelas = k;
+  const pinCfg = typeof getQuizPinConfig === 'function' ? getQuizPinConfig(S.kelas) : { pin: '', active: false };
+  if (pinCfg.active && pinCfg.pin) {
+    const pinEl = document.getElementById('inpStudentPin');
+    const inputPin = pinEl ? pinEl.value.trim() : '';
+    if (!inputPin) {
+      alert('🔒 Sesi kuis kelas ini memerlukan Kode Akses PIN dari gurumu.');
+      if (pinEl) pinEl.focus();
+      return;
+    }
+    if (String(inputPin).toLowerCase() !== String(pinCfg.pin).toLowerCase()) {
+      alert('❌ Kode akses PIN salah. Silakan tanyakan kode PIN aktif ke gurumu!');
+      if (pinEl) pinEl.focus();
+      return;
+    }
+    S.verifiedPin = pinCfg.pin;
+  }
+
   go('s-materi');
 }
 
@@ -50,13 +123,13 @@ function sMateriView() {
   const k = S.kelas, info = KELAS[k];
   const ringkasan = getMateriRingkasan(k);
   return `
-  <button class="back" onclick="go('s-kelas')">&larr; Ganti kelas</button>
+  <button class="back" onclick="go('s-name')">&larr; Ganti kelas / Nama</button>
   <span class="badge ${info.badge}">${info.label}</span>
   <h2 style="margin-top:8px;">Materi Hari Ini</h2>
   <div class="card"><p class="sub" style="margin-bottom:0;">${esc(ringkasan)}</p></div>
   <div class="row">
     <button class="btn" style="background:var(${info.accent});color:#1c1c1c;" onclick="startQuiz()">Mulai Kuis</button>
-    <button class="btn btn-2" onclick="startFlashcards()">🎴 Mode Flashcard (Hafalan)</button>
+    <button class="btn btn-2" onclick="startFlashcards()"> Mode Flashcard (Hafalan)</button>
     <button class="btn btn-ghost" onclick="openRiwayat()">Lihat Riwayat Nilai</button>
   </div>`;
 }
@@ -221,7 +294,7 @@ function sFlashcardView() {
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
     <div style="display:flex;align-items:center;gap:8px;">
       <span class="badge ${info.badge}">${info.label}</span>
-      <span class="badge badge-2" style="font-size:12px;">🎴 Flashcard Belajar</span>
+      <span class="badge badge-2" style="font-size:12px;"> Flashcard Belajar</span>
     </div>
     <span style="font-size:13px;font-weight:700;color:var(--chalk-dim);">Kartu ${flashcardState.idx + 1} dari ${list.length}</span>
   </div>
@@ -276,47 +349,6 @@ function sFlashcardView() {
 }
 
 
-/* STUDENT: Kuis */
-async function startQuiz() {
-  const info = KELAS[S.kelas];
-  document.getElementById('app').innerHTML = `<p class="empty">Memuat soal...</p>`;
-  try {
-    let fetchedFromSupabase = false;
-    if (typeof supabaseClient !== 'undefined' && supabaseClient) {
-      const sbQ = await sbFetchQuestions(S.kelas);
-      if (sbQ !== null) {
-        list = sbQ;
-        fetchedFromSupabase = true;
-      }
-    }
-    if (!fetchedFromSupabase) {
-      if (db) {
-        try {
-          const snap = await db.collection('questions').where('kelas', '==', S.kelas).get();
-          list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-        } catch (err) {
-          console.warn("DB fetch failed, using local fallback", err);
-        }
-      }
-      if (!list || list.length === 0) {
-        const localQ = getLocalQuestions();
-        list = localQ.filter(q => Number(q.kelas) === Number(S.kelas));
-      }
-    }
-    list = list.sort(() => Math.random() - 0.5).slice(0, 10);
-    if (list.length === 0) {
-      document.getElementById('app').innerHTML = `<p class="empty">Belum ada soal untuk kelas ini. Minta gurumu menambahkan soal dulu.</p><button class="btn btn-ghost" onclick="go('s-materi')">Kembali</button>`;
-      return;
-    }
-    if (quizTimerInterval) clearInterval(quizTimerInterval);
-    quiz = { list, idx: 0, score: 0, answered: false, userAnswers: [] };
-    go('s-quiz');
-  } catch (e) {
-    console.error("Quiz load error:", e);
-    document.getElementById('app').innerHTML = `<p class="empty">Gagal memuat soal. Coba lagi.</p><button class="btn btn-ghost" onclick="go('s-materi')">Kembali</button>`;
-  }
-}
-
 /* Helper untuk mendapatkan URL Audio dari Soal (baik direct base64, audioId, maupun audioLibId) */
 function getQuestionAudioSrc(item) {
   if (!item) return null;
@@ -338,10 +370,45 @@ function toggleSfxUI(btnEl) {
   }
 }
 
+/* ---------------- Sistem Lencana / Badge Achievements ---------------- */
+const BADGES_DEF = [
+  { id: 'b_perfect', name: 'Bintang Budaya', icon: '🌟', desc: 'Meraih skor 100% sempurna', color: '#f7bb43' },
+  { id: 'b_master', name: 'Master Seni', icon: '🏆', desc: 'Meraih skor 80% ke atas', color: '#4fb6a8' },
+  { id: 'b_quick', name: 'Serba Cepat', icon: '⚡', desc: 'Menjawab soal dengan tepat', color: '#9b7ede' },
+  { id: 'b_first', name: 'Semangat Belajar', icon: '🎨', desc: 'Menyelesaikan kuis pertama', color: '#e8874a' },
+  { id: 'b_diligent', name: 'Siswa Tekun', icon: '📚', desc: 'Telah mengerjakan 3+ kuis', color: '#7fc97f' }
+];
+
+function getStudentBadges(name) {
+  try {
+    const raw = localStorage.getItem('sanggar_badges_' + (name || 'guest'));
+    return raw ? JSON.parse(raw) : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function saveEarnedBadges(name, newBadgeIds) {
+  try {
+    const existing = getStudentBadges(name);
+    const updated = Array.from(new Set([...existing, ...newBadgeIds]));
+    localStorage.setItem('sanggar_badges_' + (name || 'guest'), JSON.stringify(updated));
+  } catch (e) { }
+}
+
 /* STUDENT: Kuis */
 async function startQuiz() {
   const info = KELAS[S.kelas];
+
+  // Verifikasi PIN / Kode Akses Kuis jika diaktifkan oleh guru
+  const pinCfg = typeof getQuizPinConfig === 'function' ? getQuizPinConfig(S.kelas) : { pin: '', active: false };
+  if (pinCfg.active && pinCfg.pin && S.verifiedPin !== pinCfg.pin) {
+    go('s-pin');
+    return;
+  }
+
   document.getElementById('app').innerHTML = `<p class="empty">Memuat soal...</p>`;
+
   try {
     // Pre-load audio library ke cache agar audio terhubung dengan audioLibId bisa diputar
     if (!cache.audioLib || cache.audioLib.length === 0) {
@@ -355,10 +422,11 @@ async function startQuiz() {
     }
 
     let fetchedFromSupabase = false;
+    let fetchedList = [];
     if (typeof supabaseClient !== 'undefined' && supabaseClient) {
       const sbQ = await sbFetchQuestions(S.kelas);
       if (sbQ !== null) {
-        list = sbQ;
+        fetchedList = sbQ;
         fetchedFromSupabase = true;
       }
     }
@@ -366,21 +434,37 @@ async function startQuiz() {
       if (db) {
         try {
           const snap = await db.collection('questions').where('kelas', '==', S.kelas).get();
-          list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+          fetchedList = snap.docs.map(d => ({ id: d.id, ...d.data() }));
         } catch (err) {
           console.warn("DB fetch failed, using local fallback", err);
         }
       }
-      if (!list || list.length === 0) {
+      if (!fetchedList || fetchedList.length === 0) {
         const localQ = getLocalQuestions();
-        list = localQ.filter(q => Number(q.kelas) === Number(S.kelas));
+        fetchedList = localQ.filter(q => Number(q.kelas) === Number(S.kelas));
       }
     }
-    list = list.sort(() => Math.random() - 0.5).slice(0, 10);
-    if (list.length === 0) {
+
+    // Acak Urutan Soal (Tampilkan seluruh soal yang diinput oleh guru)
+    let rawList = fetchedList.sort(() => Math.random() - 0.5);
+    if (rawList.length === 0) {
       document.getElementById('app').innerHTML = `<p class="empty">Belum ada soal untuk kelas ini. Minta gurumu menambahkan soal dulu.</p><button class="btn btn-ghost" onclick="go('s-materi')">Kembali</button>`;
       return;
     }
+
+    // Acak Urutan Opsi Jawaban (A, B, C, D) per soal sambil mempertahankan indeks asli jawaban benar
+    const list = rawList.map(item => {
+      const rawOpts = item.opsi || [];
+      const shuffledOpts = rawOpts.map((optText, origIdx) => ({
+        text: optText,
+        origIdx: origIdx
+      })).sort(() => Math.random() - 0.5);
+      return {
+        ...item,
+        shuffledOpts: shuffledOpts
+      };
+    });
+
     if (quizTimerInterval) clearInterval(quizTimerInterval);
     quiz = { list, idx: 0, score: 0, answered: false, userAnswers: [] };
     go('s-quiz');
@@ -443,13 +527,13 @@ function sQuizView() {
     ${timerHtml}
   </div>
   <div class="progress" style="margin-top:10px;"><i style="width:${pct}%;background:var(${info.accent});"></i></div>
-  <p class="sub" style="margin-bottom:6px;">Soal ${quiz.idx + 1} dari ${quiz.list.length}${item.materi ? ' · ' + esc(item.materi) : ''}</p>
+  <p class="sub" style="margin-top:10px;margin-bottom:6px;">Soal ${quiz.idx + 1} dari ${quiz.list.length}${item.materi ? ' · ' + esc(item.materi) : ''}</p>
   <p class="q-text">${esc(item.pertanyaan)}</p>
   ${media}
-  <div id="optsWrap">${item.opsi.map((o, i) => `<button class="opt" onclick="answerQuiz(${i})">${esc(o)}</button>`).join('')}</div>`;
+  <div id="optsWrap">${item.shuffledOpts.map((oObj, i) => `<button class="opt" onclick="answerQuiz(${i})">${esc(oObj.text)}</button>`).join('')}</div>`;
 }
 
-function answerQuiz(i) {
+function answerQuiz(shuffledIdx) {
   if (quizTimerInterval) clearInterval(quizTimerInterval);
   if (quiz.answered) return;
   quiz.answered = true;
@@ -457,14 +541,17 @@ function answerQuiz(i) {
   const opts = document.querySelectorAll('#optsWrap .opt');
   opts.forEach(o => o.disabled = true);
 
+  const correctShuffledIndex = item.shuffledOpts.findIndex(o => o.origIdx === item.jawaban);
+  const isCorrect = (shuffledIdx >= 0 && item.shuffledOpts[shuffledIdx].origIdx === item.jawaban);
+
   if (!quiz.userAnswers) quiz.userAnswers = [];
   quiz.userAnswers.push({
     question: item,
-    selected: i,
-    isCorrect: i === item.jawaban
+    selected: shuffledIdx >= 0 ? item.shuffledOpts[shuffledIdx].origIdx : -1,
+    isCorrect: isCorrect
   });
 
-  if (i === -1) {
+  if (shuffledIdx === -1) {
     if (typeof playSfxWrong === 'function') playSfxWrong();
     const wrap = document.getElementById('optsWrap');
     if (wrap) {
@@ -476,17 +563,18 @@ function answerQuiz(i) {
       timeoutMsg.textContent = '⏰ Waktu menjawab habis!';
       wrap.prepend(timeoutMsg);
     }
-  } else if (i === item.jawaban) {
+  } else if (isCorrect) {
     if (typeof playSfxCorrect === 'function') playSfxCorrect();
+    quiz.score++;
   } else {
     if (typeof playSfxWrong === 'function') playSfxWrong();
   }
 
-  opts[item.jawaban].classList.add('correct');
-  if (i >= 0 && i !== item.jawaban) {
-    opts[i].classList.add('wrong');
-  } else if (i === item.jawaban) {
-    quiz.score++;
+  if (correctShuffledIndex >= 0 && opts[correctShuffledIndex]) {
+    opts[correctShuffledIndex].classList.add('correct');
+  }
+  if (shuffledIdx >= 0 && !isCorrect && opts[shuffledIdx]) {
+    opts[shuffledIdx].classList.add('wrong');
   }
 
   setTimeout(() => {
@@ -503,9 +591,29 @@ function answerQuiz(i) {
 async function finishQuiz() {
   if (quizTimerInterval) clearInterval(quizTimerInterval);
   currentView = 's-result';
+
+  // Hitung Lencana / Badges yang diraih
+  const pct = Math.round((quiz.score / quiz.list.length) * 100);
+  const earnedBadges = ['b_first'];
+  if (pct === 100) earnedBadges.push('b_perfect');
+  if (pct >= 80) earnedBadges.push('b_master');
+  if (pct >= 70) earnedBadges.push('b_quick');
+
+  const historyCount = (cache.myResults || []).length + 1;
+  if (historyCount >= 3) earnedBadges.push('b_diligent');
+
+  saveEarnedBadges(S.name, earnedBadges);
+
+  // Simpan nilai ke Papan Peringkat Siswa
+  if (typeof saveLeaderboardScore === 'function') {
+    const timeSpent = Math.round((Date.now() - (quiz.startTime || Date.now())) / 1000) || 60;
+    saveLeaderboardScore(S.kelas || 1, S.name, quiz.score, quiz.list.length, timeSpent, ['⭐']);
+  }
+
   render();
   if (typeof triggerConfetti === 'function') triggerConfetti();
   if (typeof playSfxFanfare === 'function') playSfxFanfare();
+
   const resultObj = {
     nama: S.name,
     kelas: S.kelas,
@@ -573,6 +681,9 @@ function sResultView() {
     }, stepTime);
   }, 60);
 
+  const earnedIds = getStudentBadges(S.name);
+  const userBadges = BADGES_DEF.filter(b => earnedIds.includes(b.id));
+
   return `
   <div class="result-celebration-container">
     <div class="mascot-cheer cheer-left">
@@ -602,6 +713,20 @@ function sResultView() {
       <div class="speech-bubble">${mascotRight}</div>
     </div>
   </div>
+
+  <!-- Section Lencana / Badge Pencapaian Siswa -->
+  ${userBadges.length > 0 ? `
+  <div class="card" style="margin-top:14px;border-left:4px solid var(--k2);">
+    <p style="margin:0 0 8px 0;font-weight:700;color:var(--text);font-size:14px;">🏅 Lencana Pencapaian Kamu (${userBadges.length}):</p>
+    <div style="display:flex;flex-wrap:wrap;gap:8px;">
+      ${userBadges.map(b => `
+        <div style="display:flex;align-items:center;gap:6px;padding:6px 12px;border-radius:20px;background:rgba(255,255,255,0.06);border:1px solid ${b.color};font-size:13px;font-weight:700;color:${b.color};">
+          <span>${b.icon}</span>
+          <span>${b.name}</span>
+        </div>
+      `).join('')}
+    </div>
+  </div>` : ''}
 
   <div class="row" style="flex-direction:column;gap:10px;margin-top:14px;">
     <button class="btn btn-block" style="background:var(--ok);color:#1c1c1c;font-weight:800;font-size:15px;padding:14px;" onclick="go('s-pembahasan')">💡 Lihat Pembahasan & Kunci Jawaban</button>
@@ -713,9 +838,29 @@ async function openRiwayat() {
 
 function sRiwayatView() {
   const rows = cache.myResults || [];
+  const earnedIds = getStudentBadges(S.name);
+  const userBadges = BADGES_DEF.filter(b => earnedIds.includes(b.id));
+
   return `
   <button class="back" onclick="go('s-materi')">&larr; Kembali</button>
   <h2>Riwayat Nilai — ${esc(S.name)}</h2>
+
+  <!-- Banner Koleksi Lencana -->
+  <div class="card" style="margin-bottom:14px;border-left:4px solid var(--accent);">
+    <p style="margin:0 0 8px 0;font-weight:700;color:var(--text);font-size:14px;">🎖️ Koleksi Lencana Kamu (${userBadges.length}/${BADGES_DEF.length}):</p>
+    <div style="display:flex;flex-wrap:wrap;gap:8px;">
+      ${BADGES_DEF.map(b => {
+    const isUnlocked = earnedIds.includes(b.id);
+    return `
+        <div style="display:flex;align-items:center;gap:6px;padding:6px 12px;border-radius:20px;background:${isUnlocked ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.2)'};border:1px solid ${isUnlocked ? b.color : 'var(--line)'};font-size:12px;font-weight:700;color:${isUnlocked ? b.color : 'var(--chalk-dim)'};opacity:${isUnlocked ? '1' : '0.45'};" title="${esc(b.desc)}">
+          <span>${b.icon}</span>
+          <span>${b.name}</span>
+          ${isUnlocked ? '<span style="font-size:10px;">✓</span>' : '🔒'}
+        </div>`;
+  }).join('')}
+    </div>
+  </div>
+
   <div class="card">
     ${rows.length === 0 ? `<p class="empty">Belum ada riwayat kuis.</p>` : `
     <table>
@@ -734,3 +879,4 @@ function sRiwayatView() {
     </table>`}
   </div>`;
 }
+

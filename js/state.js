@@ -154,3 +154,27 @@ function deleteLocalAudio(id) {
     }
 }
 
+/* ---------------- Quiz Access PIN Storage ---------------- */
+function getQuizPinConfig(kelas) {
+    try {
+        const stored = localStorage.getItem('sb_quiz_pins');
+        if (stored) {
+            const map = JSON.parse(stored);
+            if (map && map[kelas]) return map[kelas];
+        }
+    } catch (e) { }
+    return { pin: '', active: false };
+}
+
+function saveQuizPinConfig(kelas, pin, active) {
+    try {
+        const stored = localStorage.getItem('sb_quiz_pins');
+        const map = stored ? JSON.parse(stored) : {};
+        map[kelas] = { pin: (pin || '').trim(), active: !!active };
+        localStorage.setItem('sb_quiz_pins', JSON.stringify(map));
+    } catch (e) {
+        console.warn("Failed to save quiz pin config:", e);
+    }
+}
+
+

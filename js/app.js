@@ -26,7 +26,7 @@ function homeView() {
         <h2 class="hero-card-title">Ayo mulai belajar</h2>
         <p class="hero-card-sub">Pilih peranmu untuk melanjutkan.</p>
         <div class="hero-actions">
-          <button class="btn-siswa-hero" onclick="go('s-name')">
+          <button class="btn-siswa-hero" onclick="triggerStudentPortal(event)">
             <span>🎓</span> Mulai sebagai Siswa <span>&rarr;</span>
           </button>
           <button class="btn-guru-hero" onclick="go('t-login')">
@@ -42,16 +42,28 @@ function homeView() {
   </div>`;
 }
 
+function triggerStudentPortal(e) {
+  const btnEl = e ? e.currentTarget : null;
+  if (typeof playStudentPortalSequence === 'function') {
+    playStudentPortalSequence(btnEl, () => {
+      go('s-name');
+    });
+  } else {
+    if (typeof playSfxPop === 'function') playSfxPop();
+    go('s-name');
+  }
+}
+
 const views = {
   'home': homeView,
   's-name': sNameView,
-  's-kelas': sKelasView,
   's-materi': sMateriView,
   's-flashcard': sFlashcardView,
   's-quiz': sQuizView,
   's-result': sResultView,
   's-pembahasan': sPembahasanView,
   's-riwayat': sRiwayatView,
+  's-leaderboard': typeof renderLeaderboardView === 'function' ? renderLeaderboardView : sNameView,
   't-login': tLoginView,
   't-dash': tDashView,
   't-form': tFormView,
@@ -62,19 +74,14 @@ const views = {
 function render() {
   const appEl = document.getElementById('app');
   if (!appEl) return;
-  const viewFn = views[S.role === '__view' ? S.role : currentView];
+  const viewFn = views[currentView];
   appEl.innerHTML = viewFn ? viewFn() : '';
-  attachHandlers();
 }
 
 function go(v) {
   currentView = v;
   render();
   window.scrollTo(0, 0);
-}
-
-function attachHandlers() {
-  // Tempat handler event tambahan jika diperlukan
 }
 
 /* Inisialisasi saat Halaman Dimuat */
